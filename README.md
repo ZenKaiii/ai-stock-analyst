@@ -257,6 +257,97 @@ on:
 
 ---
 
+## 🆕 新功能：热门股票发现与持仓分析
+
+### 1. 热门股票发现 (--discover)
+
+从新闻和社交媒体中自动发现潜在热门股票：
+
+```bash
+# 本地运行
+stock-analyze --discover
+```
+
+**GitHub Actions 使用：**
+
+1. 手动触发：Actions → Daily Stock Analysis → Run workflow → 选择 mode 为 "discover"
+
+2. 定时任务：在 workflow 中添加新的 schedule
+
+```yaml
+# 添加定时发现热门股票（每周六）
+- cron: '0 21 * * 6'
+```
+
+**功能说明：**
+- 扫描所有RSS新闻源
+- 提取股票代码和情绪关键词
+- 计算看涨评分 (bullish_score)
+- 推荐Top 5热门股票
+
+---
+
+### 2. 持仓分析 (--portfolio)
+
+管理并分析你的持仓：
+
+```bash
+# 添加持仓
+stock-analyze --add-holding NVDA,10,180.50
+stock-analyze --add-holding AAPL,5,150.00
+
+# 列出所有持仓
+stock-analyze --list-holdings
+
+# 分析持仓
+stock-analyze --portfolio
+```
+
+**GitHub Actions 使用：**
+
+1. **配置持仓 Secrets：**
+
+在 GitHub Secrets 中添加 `PORTFOLIO_HOLDINGS`，格式为 JSON：
+
+```json
+[{"symbol": "NVDA", "shares": 10, "avg_cost": 180.50}, {"symbol": "AAPL", "shares": 5, "avg_cost": 150.00}]
+```
+
+2. **手动触发：**
+
+Actions → Daily Stock Analysis → Run workflow → 选择 mode 为 "portfolio"
+
+3. **定时任务：** 添加新的 schedule
+
+**功能说明：**
+- 添加/更新持仓
+- 获取实时价格
+- 计算未实现盈亏
+- 风险分析（集中度、亏损过多等）
+- 操作建议（卖出锁定利润、止损等）
+
+---
+
+### GitHub Actions 多模式运行
+
+workflow 现在支持三种模式：
+
+| Mode | 说明 | 触发方式 |
+|------|------|---------|
+| `analyze` | 分析 STOCK_LIST 中的股票（默认） | 定时或手动 |
+| `discover` | 发现热门股票 | 手动选择 mode |
+| `portfolio` | 分析持仓 | 手动选择 mode |
+
+**手动触发时选择 mode：**
+
+```
+Actions → Daily Stock Analysis → Run workflow
+→ Mode: 选择 analyze/discover/portfolio
+→ 点击 Run workflow
+```
+
+---
+
 ## 📱 通知效果示例
 
 ### Telegram推送
