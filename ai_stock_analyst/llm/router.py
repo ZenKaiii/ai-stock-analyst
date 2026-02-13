@@ -34,6 +34,11 @@ class LLMRouter:
             except Exception as e:
                 logger.warning(f"Primary LLM {self.primary} failed: {e}")
         
+        # 避免 primary 和 fallback 相同时重复尝试
+        if self.fallback == self.primary:
+            logger.error(f"Fallback LLM is same as primary ({self.fallback}), skipping")
+            raise Exception(f"LLM {self.primary} failed and no alternative configured")
+        
         fallback_llm = self.providers.get(self.fallback)
         if fallback_llm and fallback_llm.is_available():
             try:
