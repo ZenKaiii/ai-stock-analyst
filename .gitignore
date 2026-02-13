@@ -35,7 +35,8 @@ env/
 .DS_Store
 
 # Project specific
-data/
+# 忽略根目录的数据文件夹（存放数据库和报告），但不忽略 ai_stock_analyst/data 模块
+/data/
 *.db
 *.sqlite
 *.sqlite3
