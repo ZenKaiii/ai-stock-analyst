@@ -50,7 +50,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          python -m src.main --type ${{ github.event.inputs.analysis_type || 'full' }}
+          stock-analyze --type ${{ github.event.inputs.analysis_type || 'full' }}
 
       - name: Upload analysis reports
         uses: actions/upload-artifact@v4
