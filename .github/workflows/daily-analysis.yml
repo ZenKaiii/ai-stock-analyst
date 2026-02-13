@@ -34,13 +34,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -e .
+          pip install -r requirements.txt
 
       - name: Create data directory
         run: mkdir -p data reports
 
       - name: Run stock analysis
         env:
+          PYTHONPATH: ${{ github.workspace }}
           DATABASE_URL: sqlite:///./data/stock_analyzer.db
           BAILIAN_API_KEY: ${{ secrets.BAILIAN_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -50,7 +51,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          stock-analyze --type ${{ github.event.inputs.analysis_type || 'full' }}
+          python -m ai_stock_analyst.main --type ${{ github.event.inputs.analysis_type || 'full' }}
 
       - name: Upload analysis reports
         uses: actions/upload-artifact@v4
