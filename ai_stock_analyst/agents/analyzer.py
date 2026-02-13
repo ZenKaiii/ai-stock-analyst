@@ -9,6 +9,7 @@ from ai_stock_analyst.agents.technical import TechnicalAnalyst
 from ai_stock_analyst.agents.news import NewsAnalyst
 from ai_stock_analyst.agents.social import SocialMediaAnalyst
 from ai_stock_analyst.agents.portfolio import PortfolioManager
+from ai_stock_analyst.agents.anomaly import AnomalyAgent
 
 
 class StockAnalyzer:
@@ -19,6 +20,7 @@ class StockAnalyzer:
             "technical": TechnicalAnalyst(),
             "news": NewsAnalyst(),
             "social": SocialMediaAnalyst(),
+            "anomaly": AnomalyAgent(),
         }
         self.portfolio_manager = PortfolioManager()
     
@@ -39,6 +41,9 @@ class StockAnalyzer:
         if "price_data" in data:
             tech_result = self.agents["technical"].analyze(data)
             analyses.append(tech_result)
+            
+            anomaly_result = self.agents["anomaly"].analyze(data)
+            analyses.append(anomaly_result)
         
         # 新闻分析
         if "news" in data and data["news"]:

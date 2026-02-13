@@ -13,7 +13,8 @@ def fetch_stock_price(symbol: str) -> Dict:
     try:
         ticker = yf.Ticker(symbol)
         info = ticker.info
-        hist = ticker.history(period="1mo")
+        # Fetch 6 months of data for anomaly detection (Z-scores)
+        hist = ticker.history(period="6mo")
         
         # 计算均线
         ma5 = ma20 = 0
@@ -38,7 +39,8 @@ def fetch_stock_price(symbol: str) -> Dict:
             "market_cap": info.get("marketCap", 0),
             "ma5": round(ma5, 2),
             "ma20": round(ma20, 2),
-            "trend": trend
+            "trend": trend,
+            "history": hist  # Return full history DataFrame for agents to use
         }
     except Exception as e:
         logger.error(f"Error fetching {symbol}: {e}")

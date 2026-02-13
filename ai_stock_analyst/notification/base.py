@@ -31,6 +31,19 @@ class BaseNotifier(ABC):
         """
         pass
     
+    def _format_anomaly_alerts(self, analyses: List) -> str:
+        alerts = []
+        for a in analyses:
+            if a.get('agent') == 'AnomalyAgent':
+                anomalies = a.get('risks', [])
+                if anomalies:
+                    alerts.extend(anomalies)
+        
+        if not alerts:
+            return ""
+            
+        return "⚠️ **市场异动监测**:\n" + "\n".join(f"*   {alert}" for alert in alerts)
+
     def format_stock_message(self, analysis_result: Dict[str, Any]) -> str:
         symbol = analysis_result.get('symbol', '')
         decision = analysis_result.get('decision', {})
@@ -48,10 +61,12 @@ class BaseNotifier(ABC):
         one_sentence = self._extract_one_sentence(decision.get('rationale', ''))
         risks = self._extract_risks(analyses)
         catalysts = self._extract_catalysts(analyses)
+        anomaly_alerts = self._format_anomaly_alerts(analyses)
         news_summary = self._format_news_summary(news)
         tech_analysis = self._format_technical_analysis(analyses)
         checklist = self._generate_checklist(analyses, decision)
         
+        # Build Markdown message with better structure
         message = f"""# 🎯 {symbol} 决策仪表盘
 
 ---
@@ -70,6 +85,10 @@ class BaseNotifier(ABC):
 ---
 
 {news_summary}
+
+---
+
+{anomaly_alerts}
 
 ---
 
@@ -96,6 +115,7 @@ class BaseNotifier(ABC):
 ---
 *AI Stock Analyzer*
 """
+        message = message.replace("\n\n\n", "\n").replace("---\n\n---", "---")
         return message
     
     def _extract_one_sentence(self, rationale: str) -> str:
