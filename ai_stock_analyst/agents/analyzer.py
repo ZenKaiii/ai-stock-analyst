@@ -1,7 +1,7 @@
 """
 股票分析主类 - 整合所有Agent
 """
-from typing import Dict, List
+from typing import Dict, List, Optional
 from datetime import datetime
 
 from ai_stock_analyst.agents.base import AnalysisResult
@@ -78,11 +78,12 @@ class StockAnalyzer:
                 }
                 for a in analyses
             ],
+            "news": data.get("news", [])[:5],
             "timestamp": datetime.now().isoformat()
         }
 
 
-def analyze_stock(symbol: str, data: Dict = None) -> Dict:
+def analyze_stock(symbol: str, data: Optional[Dict] = None) -> Dict:
     """
     分析单个股票的便捷函数
 
