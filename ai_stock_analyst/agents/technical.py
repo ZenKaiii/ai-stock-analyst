@@ -2,7 +2,7 @@
 技术面分析Agent
 """
 from typing import Dict
-from agents.base import BaseAgent, AnalysisResult
+from ai_stock_analyst.agents.base import BaseAgent, AnalysisResult
 
 
 class TechnicalAnalyst(BaseAgent):

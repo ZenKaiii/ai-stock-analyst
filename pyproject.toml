@@ -58,8 +58,8 @@ dev = [
 ]
 
 [project.scripts]
-stock-analyze = "src.main:main"
-stock-web = "src.web.app:run"
+stock-analyze = "ai_stock_analyst.main:main"
+stock-web = "ai_stock_analyst.web.app:run"
 
 [tool.black]
 line-length = 100
@@ -80,4 +80,4 @@ requires = ["hatchling>=1.8.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+packages = ["ai_stock_analyst"]

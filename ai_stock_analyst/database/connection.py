@@ -13,7 +13,7 @@ class Database:
     """SQLite数据库管理类"""
     
     def __init__(self, database_url: str = None):
-        from config import get_settings
+        from ai_stock_analyst.config import get_settings
         
         if database_url:
             # 从URL提取路径 (sqlite:///path/to/db.db)

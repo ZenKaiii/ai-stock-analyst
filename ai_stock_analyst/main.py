@@ -6,12 +6,12 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any
 
-from config import get_settings
-from database import get_db
-from data import fetch_stock_price
-from rss import fetch_news, fetch_social
-from agents import analyze_stock
-from notification import get_notification_manager
+from ai_stock_analyst.config import get_settings
+from ai_stock_analyst.database import get_db
+from ai_stock_analyst.data import fetch_stock_price
+from ai_stock_analyst.rss import fetch_news, fetch_social
+from ai_stock_analyst.agents import analyze_stock
+from ai_stock_analyst.notification import get_notification_manager
 
 logging.basicConfig(
     level=logging.INFO,
