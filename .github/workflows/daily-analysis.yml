@@ -59,7 +59,7 @@ jobs:
           DATABASE_URL: sqlite:///./data/stock_analyzer.db
           BAILIAN_API_KEY: ${{ secrets.BAILIAN_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          LLM_PRIMARY: ${{ secrets.LLM_PRIMARY || 'gemini' }}
+          LLM_PRIMARY: ${{ secrets.LLM_PRIMARY || 'bailian' }}
           LLM_FALLBACK: ${{ secrets.LLM_FALLBACK || 'gemini' }}
           STOCK_LIST: ${{ github.event.inputs.stocks || secrets.STOCK_LIST || 'AAPL,TSLA,NVDA,MSFT,GOOGL,AMZN,META' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}

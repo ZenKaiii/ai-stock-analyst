@@ -19,7 +19,7 @@
 | 🤖 AI分析 | 决策仪表盘 | 核心结论 + 精确买卖点位 + 多维度评分 |
 | 📡 新闻 | RSS聚合 | 实时获取Seeking Alpha、MarketWatch等财经新闻 |
 | 🐦 社媒 | 情绪监控 | Twitter/X和Reddit讨论情绪分析 |
-| 🧠 LLM | 双模型支持 | Google Gemini(主要) + 阿里云百炼(备用) |
+| 🧠 LLM | 双模型支持 | 阿里云百炼 DeepSeek(主要) + Google Gemini(备用) |
 | 📱 推送 | 多渠道通知 | Telegram、钉钉、飞书、企业微信 |
 | ⚡ 自动化 | GitHub Actions | 定时执行，零成本运行 |
 
@@ -53,14 +53,14 @@
 
 | Secret名称 | 说明 | 获取方式 |
 |-----------|------|----------|
-| `GEMINI_API_KEY` | Google Gemini API Key | [Google AI Studio](https://makersuite.google.com/app/apikey) |
+| `BAILIAN_API_KEY` | 阿里云百炼 API Key | [阿里云百炼控制台](https://bailian.console.aliyun.com/) |
 | `STOCK_LIST` | 要分析的股票代码 | 如：`AAPL,TSLA,NVDA,MSFT` |
 
 **可选 - LLM 备用配置：**
 
 | Secret名称 | 说明 | 获取方式 |
 |-----------|------|----------|
-| `BAILIAN_API_KEY` | 阿里云百炼API Key（备用） | [阿里云百炼控制台](https://bailian.console.aliyun.com/) |
+| `GEMINI_API_KEY` | Google Gemini API Key（备用） | [Google AI Studio](https://makersuite.google.com/app/apikey) |
 
 **可选 - 通知渠道（至少配置一个）：**
 
@@ -72,20 +72,21 @@
 | `FEISHU_WEBHOOK_URL` | 飞书Webhook | 飞书群 → 设置 → 群机器人 → 添加机器人 |
 | `WECHAT_WORK_WEBHOOK_URL` | 企业微信Webhook | 企业微信群 → 群设置 → 添加群机器人 |
 
-**如何获取 Google Gemini API Key（必需）：**
-
-1. 访问 https://makersuite.google.com/app/apikey
-2. 使用 Google 账号登录
-3. 点击「Create API Key」
-4. 复制 Key 并添加到 GitHub Secrets 中，名称设为 `GEMINI_API_KEY`
-
-**如何获取阿里云百炼 API Key（可选，备用）：**
+**如何获取阿里云百炼 API Key（必需）：**
 
 1. 访问 https://bailian.console.aliyun.com/
 2. 使用阿里云账号登录
 3. 点击左侧「API Key管理」
 4. 点击「创建新的API Key」
 5. 复制 Key 并添加到 GitHub Secrets 中，名称设为 `BAILIAN_API_KEY`
+6. 默认使用 DeepSeek-V3 模型（推荐），也可选择 qwen-plus 等其他模型
+
+**如何获取 Google Gemini API Key（可选，备用）：**
+
+1. 访问 https://makersuite.google.com/app/apikey
+2. 使用 Google 账号登录
+3. 点击「Create API Key」
+4. 复制 Key 并添加到 GitHub Secrets 中，名称设为 `GEMINI_API_KEY`
 
 #### 第三步：启用GitHub Actions
 
@@ -193,23 +194,24 @@ ai-stock-analyst/
 DATABASE_URL=sqlite:///./data/stock_analyzer.db
 
 # ===========================================
-# LLM配置 - Google Gemini（主要推荐）
+# LLM配置 - 阿里云百炼（主要推荐）
+# 获取地址: https://bailian.console.aliyun.com/
+# 默认模型: DeepSeek-V3（推荐）
+# ===========================================
+BAILIAN_API_KEY=sk-your-api-key-here
+BAILIAN_REGION=beijing
+BAILIAN_MODEL=deepseek-v3
+
+# ===========================================
+# LLM配置 - Google Gemini（备用）
 # 获取地址: https://makersuite.google.com/app/apikey
 # ===========================================
 GEMINI_API_KEY=your-gemini-api-key
-GEMINI_MODEL=gemini-pro
-
-# ===========================================
-# LLM配置 - 阿里云百炼（备用）
-# 获取地址: https://bailian.console.aliyun.com/
-# ===========================================
-BAILIAN_API_KEY=sk-your-api-key-here
-BAILIAN_REGION=singapore
-BAILIAN_MODEL=qwen-plus
+GEMINI_MODEL=gemini-2.0-flash
 
 # LLM路由策略（自动故障转移）
-LLM_PRIMARY=gemini
-LLM_FALLBACK=bailian
+LLM_PRIMARY=bailian
+LLM_FALLBACK=gemini
 
 # ===========================================
 # 股票列表（英文逗号分隔）

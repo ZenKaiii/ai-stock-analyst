@@ -22,7 +22,7 @@ class BailianLLM(BaseLLM):
     def __init__(self):
         self.api_key = os.getenv("BAILIAN_API_KEY")
         self.region = os.getenv("BAILIAN_REGION", "singapore")
-        self.model = os.getenv("BAILIAN_MODEL", "qwen-plus")
+        self.model = os.getenv("BAILIAN_MODEL", "deepseek-v3")
         
         self.base_url = self.ENDPOINTS.get(self.region, self.ENDPOINTS["singapore"])
         self.available = bool(self.api_key)

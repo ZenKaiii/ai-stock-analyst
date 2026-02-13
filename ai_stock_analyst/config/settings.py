@@ -11,18 +11,18 @@ class Settings(BaseSettings):
     # 数据库配置 - SQLite（适合GitHub Actions和本地运行）
     DATABASE_URL: str = "sqlite:///./data/stock_analyzer.db"
     
-    # LLM配置 - 阿里云百炼（主要）
+    # LLM配置 - 阿里云百炼（主要推荐）
     BAILIAN_API_KEY: str = ""
-    BAILIAN_REGION: str = "singapore"
-    BAILIAN_MODEL: str = "qwen-plus"
-    
+    BAILIAN_REGION: str = "beijing"
+    BAILIAN_MODEL: str = "deepseek-v3"
+
     # LLM配置 - Google Gemini（备用）
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-3-pro-preview"
-    
-    # LLM路由策略 - 默认使用 Gemini，百炼作为备用
-    LLM_PRIMARY: str = "gemini"
-    LLM_FALLBACK: str = "bailian"
+    GEMINI_MODEL: str = "gemini-2.0-flash"
+
+    # LLM路由策略 - 默认使用百炼 DeepSeek，Gemini 作为备用
+    LLM_PRIMARY: str = "bailian"
+    LLM_FALLBACK: str = "gemini"
     
     # RSS配置
     RSSHUB_URLS: List[str] = ["https://rsshub.app", "https://rsshub.rssforever.com"]
