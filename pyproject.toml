@@ -79,6 +79,15 @@ disallow_untyped_defs = true
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["ai_stock_analyst*"]
+[tool.setuptools]
+packages = [
+    "ai_stock_analyst",
+    "ai_stock_analyst.agents",
+    "ai_stock_analyst.config",
+    "ai_stock_analyst.data",
+    "ai_stock_analyst.database",
+    "ai_stock_analyst.llm",
+    "ai_stock_analyst.notification",
+    "ai_stock_analyst.rss",
+    "ai_stock_analyst.web"
+]

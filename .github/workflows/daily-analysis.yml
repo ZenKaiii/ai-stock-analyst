@@ -37,11 +37,22 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
+      - name: Debug - Check package structure
+        run: |
+          echo "=== Checking installed package ==="
+          pip show ai-stock-analyst
+          echo "=== Package location ==="
+          python -c "import ai_stock_analyst; print(ai_stock_analyst.__file__)"
+          echo "=== Checking submodules ==="
+          python -c "from ai_stock_analyst.data import fetch_stock_price; print('data module OK')"
+          python -c "import ai_stock_analyst.data; print('data import OK')"
+
       - name: Create data directory
         run: mkdir -p data reports
 
       - name: Run stock analysis
         env:
+          PYTHONPATH: ${{ github.workspace }}
           DATABASE_URL: sqlite:///./data/stock_analyzer.db
           BAILIAN_API_KEY: ${{ secrets.BAILIAN_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -51,6 +62,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
+          python -c "from ai_stock_analyst.data import fetch_stock_price; print('Import test OK')"
           stock-analyze --type ${{ github.event.inputs.analysis_type || 'full' }}
 
       - name: Upload analysis reports
