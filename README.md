@@ -19,7 +19,7 @@
 | 🤖 AI分析 | 决策仪表盘 | 核心结论 + 精确买卖点位 + 多维度评分 |
 | 📡 新闻 | RSS聚合 | 实时获取Seeking Alpha、MarketWatch等财经新闻 |
 | 🐦 社媒 | 情绪监控 | Twitter/X和Reddit讨论情绪分析 |
-| 🧠 LLM | 双模型支持 | 阿里云百炼(主要) + Google Gemini(备用) |
+| 🧠 LLM | 双模型支持 | Google Gemini(主要) + 阿里云百炼(备用) |
 | 📱 推送 | 多渠道通知 | Telegram、钉钉、飞书、企业微信 |
 | ⚡ 自动化 | GitHub Actions | 定时执行，零成本运行 |
 
@@ -53,8 +53,14 @@
 
 | Secret名称 | 说明 | 获取方式 |
 |-----------|------|----------|
-| `BAILIAN_API_KEY` | 阿里云百炼API Key | [阿里云百炼控制台](https://bailian.console.aliyun.com/) |
+| `GEMINI_API_KEY` | Google Gemini API Key | [Google AI Studio](https://makersuite.google.com/app/apikey) |
 | `STOCK_LIST` | 要分析的股票代码 | 如：`AAPL,TSLA,NVDA,MSFT` |
+
+**可选 - LLM 备用配置：**
+
+| Secret名称 | 说明 | 获取方式 |
+|-----------|------|----------|
+| `BAILIAN_API_KEY` | 阿里云百炼API Key（备用） | [阿里云百炼控制台](https://bailian.console.aliyun.com/) |
 
 **可选 - 通知渠道（至少配置一个）：**
 
@@ -66,13 +72,20 @@
 | `FEISHU_WEBHOOK_URL` | 飞书Webhook | 飞书群 → 设置 → 群机器人 → 添加机器人 |
 | `WECHAT_WORK_WEBHOOK_URL` | 企业微信Webhook | 企业微信群 → 群设置 → 添加群机器人 |
 
-**如何获取阿里云百炼API Key：**
+**如何获取 Google Gemini API Key（必需）：**
+
+1. 访问 https://makersuite.google.com/app/apikey
+2. 使用 Google 账号登录
+3. 点击「Create API Key」
+4. 复制 Key 并添加到 GitHub Secrets 中，名称设为 `GEMINI_API_KEY`
+
+**如何获取阿里云百炼 API Key（可选，备用）：**
 
 1. 访问 https://bailian.console.aliyun.com/
-2. 使用阿里云账号登录（没有就注册一个）
+2. 使用阿里云账号登录
 3. 点击左侧「API Key管理」
 4. 点击「创建新的API Key」
-5. 复制Key并添加到GitHub Secrets中
+5. 复制 Key 并添加到 GitHub Secrets 中，名称设为 `BAILIAN_API_KEY`
 
 #### 第三步：启用GitHub Actions
 
@@ -109,17 +122,18 @@ git clone https://github.com/ZenKaiii/ai-stock-analyst.git
 cd ai-stock-analyst
 
 # 2. 安装依赖
+pip install -r requirements.txt
 pip install -e .
 
 # 3. 配置环境变量
 cp .env.example .env
-# 编辑 .env 文件，添加API Key
+# 编辑 .env 文件，添加 GEMINI_API_KEY
 
 # 4. 运行分析
-python -m src.main --stocks AAPL,TSLA
+python -m ai_stock_analyst.main --stocks AAPL,TSLA
 
 # 5. 启动Web界面（可选）
-python -m src.web
+python -m ai_stock_analyst.web.app
 # 打开 http://localhost:8000
 ```
 
@@ -144,12 +158,12 @@ docker-compose down
 
 ```
 ai-stock-analyst/
-├── src/
+├── ai_stock_analyst/        # 主程序包
 │   ├── config/              # 配置管理
 │   ├── database/            # SQLite数据库
 │   ├── data/                # 股票数据获取(yfinance)
 │   ├── rss/                 # RSS新闻 + 社媒抓取
-│   ├── llm/                 # LLM路由(百炼+Gemini)
+│   ├── llm/                 # LLM路由(Gemini+百炼)
 │   ├── agents/              # AI分析Agent系统
 │   ├── notification/        # 通知推送(多平台)
 │   └── main.py              # CLI入口
@@ -161,6 +175,7 @@ ai-stock-analyst/
 ├── docker-compose.yml
 ├── Dockerfile
 ├── .env.example             # 环境变量模板
+├── requirements.txt         # Python依赖
 ├── pyproject.toml
 └── README.md                # 本文档
 ```
@@ -178,23 +193,23 @@ ai-stock-analyst/
 DATABASE_URL=sqlite:///./data/stock_analyzer.db
 
 # ===========================================
-# LLM配置 - 阿里云百炼（主要推荐）
+# LLM配置 - Google Gemini（主要推荐）
+# 获取地址: https://makersuite.google.com/app/apikey
+# ===========================================
+GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-pro
+
+# ===========================================
+# LLM配置 - 阿里云百炼（备用）
 # 获取地址: https://bailian.console.aliyun.com/
 # ===========================================
 BAILIAN_API_KEY=sk-your-api-key-here
 BAILIAN_REGION=singapore
 BAILIAN_MODEL=qwen-plus
 
-# ===========================================
-# LLM配置 - Google Gemini（备用）
-# 获取地址: https://makersuite.google.com/app/apikey
-# ===========================================
-GEMINI_API_KEY=your-gemini-api-key
-GEMINI_MODEL=gemini-pro
-
 # LLM路由策略（自动故障转移）
-LLM_PRIMARY=bailian
-LLM_FALLBACK=gemini
+LLM_PRIMARY=gemini
+LLM_FALLBACK=bailian
 
 # ===========================================
 # 股票列表（英文逗号分隔）
@@ -293,8 +308,9 @@ AI Stock Analyzer
 ### GitHub Actions运行失败
 
 1. **检查Secrets配置**
-   - 确认 `BAILIAN_API_KEY` 已正确设置
-   - 确认没有多余的空格
+   - 确认 `GEMINI_API_KEY` 已正确设置（必需）
+   - 确认没有多余的空格或换行符
+   - 可选：配置 `BAILIAN_API_KEY` 作为备用
 
 2. **查看运行日志**
    - 进入Actions → 点击失败的workflow
@@ -302,8 +318,9 @@ AI Stock Analyzer
 
 3. **本地测试**
    ```bash
+   pip install -r requirements.txt
    pip install -e .
-   python -m src.main --stocks AAPL
+   python -m ai_stock_analyst.main --stocks AAPL
    ```
 
 ### 收不到通知
