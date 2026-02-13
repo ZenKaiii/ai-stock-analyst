@@ -82,7 +82,6 @@ def main():
         notify_mgr.send_batch_analysis(results)
     
     logger.info(f"\nAnalysis complete! Processed {len(results)} stocks.")
-    return results
 
 
 def save_price_data(data: dict):
