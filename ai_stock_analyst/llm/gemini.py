@@ -14,7 +14,7 @@ class GeminiLLM(BaseLLM):
 
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
-        self.model = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+        self.model = os.getenv("GEMINI_MODEL", "gemini-3-pro-preview")
         self.available = bool(self.api_key)
         self._client = None
 

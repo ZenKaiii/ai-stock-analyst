@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     
     # LLM配置 - Google Gemini（备用）
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3-pro-preview"
     
     # LLM路由策略 - 默认使用 Gemini，百炼作为备用
     LLM_PRIMARY: str = "gemini"
