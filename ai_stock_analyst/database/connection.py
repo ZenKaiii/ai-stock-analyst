@@ -129,7 +129,42 @@ class Database:
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS portfolio_holdings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    shares REAL NOT NULL,
+                    avg_cost REAL NOT NULL,
+                    current_price REAL,
+                    market_value REAL,
+                    unrealized_pnl REAL,
+                    unrealized_pnl_percent REAL,
+                    sector TEXT,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(symbol)
+                )
+            """)
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS stock_recommendations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT NOT NULL,
+                    recommendation_type TEXT,
+                    bullish_score REAL,
+                    news_count INTEGER,
+                    sentiment_score REAL,
+                    catalysts TEXT,
+                    risks TEXT,
+                    reasoning TEXT,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    expires_at TIMESTAMP
+                )
+            """)
+
             # 创建索引
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_prices_symbol ON stock_prices(symbol)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_prices_time ON stock_prices(fetched_at)")
@@ -137,6 +172,8 @@ class Database:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_social_symbol ON social_posts(symbol)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_analysis_symbol ON analysis_results(symbol)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_analysis_time ON analysis_results(created_at)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_portfolio_symbol ON portfolio_holdings(symbol)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_recommendations_symbol ON stock_recommendations(symbol)")
             
             conn.commit()
             logger.info("Database initialized successfully")

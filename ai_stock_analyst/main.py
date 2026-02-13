@@ -2,6 +2,7 @@
 主程序入口 - CLI
 """
 import argparse
+import json
 import logging
 from datetime import datetime
 from typing import List, Dict, Any
@@ -11,6 +12,8 @@ from ai_stock_analyst.database import get_db
 from ai_stock_analyst.data import fetch_stock_price
 from ai_stock_analyst.rss import fetch_news, fetch_social
 from ai_stock_analyst.agents import analyze_stock
+from ai_stock_analyst.agents.recommendation import scan_for_opportunities
+from ai_stock_analyst.agents.portfolio_analysis import analyze_portfolio, add_holding, get_holdings
 from ai_stock_analyst.notification import get_notification_manager
 
 logging.basicConfig(
@@ -26,8 +29,84 @@ def main():
     parser.add_argument("--stocks", type=str, help="Comma-separated stock symbols")
     parser.add_argument("--type", type=str, default="full", choices=["quick", "full", "deep"])
     parser.add_argument("--no-notify", action="store_true", help="Disable notifications")
+    parser.add_argument("--discover", action="store_true", help="Discover trending stocks from news")
+    parser.add_argument("--portfolio", action="store_true", help="Analyze portfolio holdings")
+    parser.add_argument("--add-holding", type=str, help="Add holding: SYMBOL,SHARES,COST")
+    parser.add_argument("--list-holdings", action="store_true", help="List all holdings")
+    
     args = parser.parse_args()
     
+    if args.add_holding:
+        parts = args.add_holding.split(",")
+        if len(parts) != 3:
+            print("Usage: --add-holding SYMBOL,SHARES,COST")
+            return
+        symbol, shares, cost = parts[0].strip().upper(), float(parts[1]), float(parts[2])
+        add_holding(symbol, shares, cost)
+        print(f"Added: {symbol} - {shares} shares @ ${cost}")
+        return
+    
+    if args.list_holdings:
+        holdings = get_holdings()
+        if not holdings:
+            print("No holdings found. Add holdings with --add-holding SYMBOL,SHARES,COST")
+            return
+        print(f"\n{'Symbol':<8} {'Shares':<10} {'Avg Cost':<12} {'Current':<12} {'Value':<14} {'P/L':<12}")
+        print("-" * 70)
+        for h in holdings:
+            print(f"{h.get('symbol', ''):<8} {h.get('shares', 0):<10.2f} ${h.get('avg_cost', 0):<11.2f} ${h.get('current_price', 0):<11.2f} ${h.get('market_value', 0):<13.2f} ${h.get('unrealized_pnl', 0):<11.2f}")
+        return
+    
+    if args.discover:
+        logger.info("Discovering trending stocks from news...")
+        result = scan_for_opportunities()
+        
+        print("\n" + "="*50)
+        print("📈 热门股票发现")
+        print("="*50)
+        
+        if result.get("recommendations"):
+            for rec in result["recommendations"]:
+                emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(rec["signal"], "⚪")
+                print(f"{emoji} {rec['symbol']:<6} | 信号: {rec['signal']:<5} | 评分: {rec['bullish_score']:.2f} | 新闻: {rec['news_count']}")
+        
+        print("\n" + result.get("summary", ""))
+        
+        if not args.no_notify:
+            notify_mgr = get_notification_manager()
+            notify_mgr.send("📈 热门股票发现", result.get("summary", ""))
+        
+        return
+    
+    if args.portfolio:
+        logger.info("Analyzing portfolio...")
+        holdings = get_holdings()
+        
+        if not holdings:
+            print("No holdings found. Add holdings with --add-holding SYMBOL,SHARES,COST")
+            return
+        
+        portfolio_data = [
+            {
+                "symbol": h["symbol"],
+                "shares": h["shares"],
+                "avg_cost": h["avg_cost"]
+            }
+            for h in holdings
+        ]
+        
+        result = analyze_portfolio(portfolio_data)
+        
+        print("\n" + "="*50)
+        print("📊 持仓分析报告")
+        print("="*50)
+        print(result.get("analysis", ""))
+        
+        if not args.no_notify:
+            notify_mgr = get_notification_manager()
+            notify_mgr.send("📊 持仓分析报告", result.get("analysis", ""))
+        
+        return
     settings = get_settings()
     stocks = args.stocks.split(",") if args.stocks else settings.stocks
     
