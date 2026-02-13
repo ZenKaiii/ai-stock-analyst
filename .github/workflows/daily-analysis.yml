@@ -58,6 +58,7 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}
           DATABASE_URL: sqlite:///./data/stock_analyzer.db
           BAILIAN_API_KEY: ${{ secrets.BAILIAN_API_KEY }}
+          BAILIAN_REGION: ${{ secrets.BAILIAN_REGION || 'beijing' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           LLM_PRIMARY: ${{ secrets.LLM_PRIMARY || 'bailian' }}
           LLM_FALLBACK: ${{ secrets.LLM_FALLBACK || 'gemini' }}
