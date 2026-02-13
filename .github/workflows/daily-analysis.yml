@@ -1,0 +1,63 @@
+name: Daily Stock Analysis
+
+on:
+  schedule:
+    # Run at 21:00 UTC (5:00 AM Beijing Time, Tuesday-Saturday)
+    - cron: '0 21 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      stocks:
+        description: 'Stock symbols (comma-separated)'
+        required: false
+      analysis_type:
+        description: 'Analysis type'
+        default: 'full'
+        type: choice
+        options:
+          - quick
+          - full
+          - deep
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+
+      - name: Create data directory
+        run: mkdir -p data reports
+
+      - name: Run stock analysis
+        env:
+          DATABASE_URL: sqlite:///./data/stock_analyzer.db
+          BAILIAN_API_KEY: ${{ secrets.BAILIAN_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          LLM_PRIMARY: ${{ secrets.LLM_PRIMARY || 'bailian' }}
+          LLM_FALLBACK: ${{ secrets.LLM_FALLBACK || 'gemini' }}
+          STOCK_LIST: ${{ github.event.inputs.stocks || secrets.STOCK_LIST || 'AAPL,TSLA,NVDA,MSFT,GOOGL,AMZN,META' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          python -m src.main --type ${{ github.event.inputs.analysis_type || 'full' }}
+
+      - name: Upload analysis reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: analysis-reports-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            reports/
+            data/*.db
+          retention-days: 30

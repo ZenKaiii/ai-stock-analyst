@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # PostgreSQL数据库
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: stock_analyzer
+      POSTGRES_USER: analyzer
+      POSTGRES_PASSWORD: changeme
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analyzer"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Web应用
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://analyzer:changeme@postgres:5432/stock_analyzer
+      - BAILIAN_API_KEY=${BAILIAN_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # 可选：自托管RSSHub
+  rsshub:
+    image: diygod/rsshub:latest
+    ports:
+      - "1200:1200"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
