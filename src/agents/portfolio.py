@@ -2,7 +2,7 @@
 投资组合决策Agent
 """
 from typing import Dict, List
-from src.agents.base import BaseAgent, AnalysisResult
+from agents.base import BaseAgent, AnalysisResult
 
 
 class PortfolioManager(BaseAgent):

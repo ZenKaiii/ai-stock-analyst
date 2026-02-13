@@ -2,7 +2,7 @@
 社媒情绪分析Agent
 """
 from typing import Dict
-from src.agents.base import BaseAgent, AnalysisResult
+from agents.base import BaseAgent, AnalysisResult
 
 
 class SocialMediaAnalyst(BaseAgent):

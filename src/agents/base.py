@@ -29,7 +29,7 @@ class BaseAgent(ABC):
     
     def call_llm(self, prompt: str, system: str = "") -> str:
         """调用LLM"""
-        from src.llm import get_llm_router
+        from llm import get_llm_router
         messages = []
         if system:
             messages.append({"role": "system", "content": system})

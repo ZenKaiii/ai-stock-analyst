@@ -4,11 +4,11 @@
 from typing import Dict, List
 from datetime import datetime
 
-from src.agents.base import AnalysisResult
-from src.agents.technical import TechnicalAnalyst
-from src.agents.news import NewsAnalyst
-from src.agents.social import SocialMediaAnalyst
-from src.agents.portfolio import PortfolioManager
+from agents.base import AnalysisResult
+from agents.technical import TechnicalAnalyst
+from agents.news import NewsAnalyst
+from agents.social import SocialMediaAnalyst
+from agents.portfolio import PortfolioManager
 
 
 class StockAnalyzer:

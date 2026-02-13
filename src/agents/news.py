@@ -2,7 +2,7 @@
 新闻分析Agent
 """
 from typing import Dict, List
-from src.agents.base import BaseAgent, AnalysisResult
+from agents.base import BaseAgent, AnalysisResult
 
 
 class NewsAnalyst(BaseAgent):
