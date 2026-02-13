@@ -52,19 +52,22 @@ jobs:
         run: mkdir -p data reports
 
       - name: Initialize portfolio from secrets
-        if: github.event.inputs.mode == 'portfolio' && secrets.PORTFOLIO_HOLDINGS != ''
+        if: github.event.inputs.mode == 'portfolio'
         run: |
-          echo "${{ secrets.PORTFOLIO_HOLDINGS }}" > data/portfolio.json
-          python -c "
-          import json
-          import sys
-          from ai_stock_analyst.agents.portfolio_analysis import add_holding
-          with open('data/portfolio.json') as f:
-              holdings = json.load(f)
-          for h in holdings:
-              add_holding(h['symbol'], h['shares'], h['avg_cost'])
-          print(f'Loaded {len(holdings)} holdings')
-          "
+          if [ -n "${{ secrets.PORTFOLIO_HOLDINGS }}" ]; then
+            echo "${{ secrets.PORTFOLIO_HOLDINGS }}" > data/portfolio.json
+            python -c "
+            import json
+            from ai_stock_analyst.agents.portfolio_analysis import add_holding
+            with open('data/portfolio.json') as f:
+                holdings = json.load(f)
+            for h in holdings:
+                add_holding(h['symbol'], h['shares'], h['avg_cost'])
+            print(f'Loaded {len(holdings)} holdings')
+            "
+          else
+            echo "No PORTFOLIO_HOLDINGS secret found"
+          fi
 
       - name: Run stock analysis
         if: github.event.inputs.mode == 'analyze' || github.event.inputs.mode == ''
@@ -74,9 +77,9 @@ jobs:
           BAILIAN_API_KEY: ${{ secrets.BAILIAN_API_KEY }}
           BAILIAN_REGION: ${{ secrets.BAILIAN_REGION || 'beijing' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          LLM_PRIMARY: ${{ secrets.LLM_PRIMARY || 'bailian' }}
-          LLM_FALLBACK: ${{ secrets.LLM_FALLBACK || 'gemini' }}
-          STOCK_LIST: ${{ github.event.inputs.stocks || secrets.STOCK_LIST || 'AAPL,TSLA,NVDA,MSFT,GOOGL,AMZN,META' }}
+          LLM_PRIMARY: ${{ secrets.LLM_PRIMARY || vars.LLM_PRIMARY || 'bailian' }}
+          LLM_FALLBACK: ${{ secrets.LLM_FALLBACK || vars.LLM_FALLBACK || 'gemini' }}
+          STOCK_LIST: ${{ github.event.inputs.stocks || vars.STOCK_LIST || secrets.STOCK_LIST || 'AAPL,TSLA,NVDA,MSFT,GOOGL,AMZN,META' }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
