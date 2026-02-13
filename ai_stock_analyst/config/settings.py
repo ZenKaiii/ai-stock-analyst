@@ -20,9 +20,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-pro"
     
-    # LLM路由策略
-    LLM_PRIMARY: str = "bailian"
-    LLM_FALLBACK: str = "gemini"
+    # LLM路由策略 - 默认使用 Gemini，百炼作为备用
+    LLM_PRIMARY: str = "gemini"
+    LLM_FALLBACK: str = "bailian"
     
     # RSS配置
     RSSHUB_URLS: List[str] = ["https://rsshub.app", "https://rsshub.rssforever.com"]
