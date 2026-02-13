@@ -82,28 +82,21 @@ class StockAnalyzer:
         }
 
 
-def analyze_stock(symbol: str, price_data: Dict = None, 
-                  news: List = None, social_data: Dict = None) -> Dict:
+def analyze_stock(symbol: str, data: Dict = None) -> Dict:
     """
     分析单个股票的便捷函数
-    
+
     Args:
         symbol: 股票代码
-        price_data: 价格数据
-        news: 新闻列表
-        social_data: 社交媒体数据
-        
+        data: 包含价格、新闻、社媒等数据的字典
+
     Returns:
         Dict: 分析结果
     """
     analyzer = StockAnalyzer()
-    data = {"symbol": symbol}
-    
-    if price_data:
-        data["price_data"] = price_data
-    if news:
-        data["news"] = news
-    if social_data:
-        data["social_data"] = social_data
-    
+    if data is None:
+        data = {"symbol": symbol}
+    else:
+        data["symbol"] = symbol
+
     return analyzer.analyze(symbol, data)
