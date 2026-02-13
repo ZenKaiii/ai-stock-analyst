@@ -105,33 +105,28 @@ class NotificationManager:
         return results
     
     def send_batch_analysis(self, results: List[Dict[str, Any]]) -> Dict[str, bool]:
-        """
-        发送批量分析结果通知
-        
-        Args:
-            results: 多个股票的分析结果列表
-            
-        Returns:
-            Dict[str, bool]: 每个渠道的发送结果
-        """
         if not results:
             return {}
         
-        # 生成汇总消息
-        summary_lines = ["📈 Daily Stock Analysis Report\n"]
+        summary_lines = [
+            f"# 📊 每日分析汇总报告\n",
+            f"---",
+            f"本次共分析了 **{len(results)}** 只股票：\n"
+        ]
         
         for result in results:
             symbol = result.get('symbol', '')
             decision = result.get('decision', {})
             signal = decision.get('signal', 'HOLD')
+            conf = decision.get('confidence', 0)
             
             emoji = {'BUY': '🟢', 'SELL': '🔴', 'HOLD': '🟡'}.get(signal, '⚪')
-            summary_lines.append(f"{emoji} {symbol}: {signal}")
+            summary_lines.append(f"*   {emoji} **{symbol}**: `{signal}` (置信度: {conf}%)")
         
         summary_lines.append("\n---\n*AI Stock Analyzer*")
         content = "\n".join(summary_lines)
         
-        return self.send("📊 Daily Analysis Summary", content)
+        return self.send("📈 每日分析汇总报告", content)
 
 
 # 全局通知管理器实例

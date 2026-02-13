@@ -22,6 +22,29 @@ NEGATIVE_KEYWORDS = [
     "下调", "减持", "卖出", "不及预期", "利空", "亏损", "诉讼", "调查"
 ]
 
+# Known major US stock tickers for better matching
+KNOWN_TICKERS = {
+    # Tech
+    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "NVDA", "TSLA", "AMD", "INTC",
+    "ORCL", "CRM", "ADBE", "CSCO", "IBM", "QCOM", "TXN", "AVGO", "NOW", "SNOW",
+    "PANW", "CRWD", "NET", "DDOG", "ZS", "MDB", "TEAM", "WDAY", "OKTA", "SPLK",
+    # Finance
+    "JPM", "BAC", "WFC", "GS", "MS", "C", "BLK", "AXP", "V", "MA", "PYPL", "SQ",
+    # Consumer
+    "WMT", "TGT", "COST", "HD", "LOW", "NKE", "SBUX", "MCD", "DIS", "CMCSA",
+    # Healthcare
+    "JNJ", "UNH", "PFE", "ABBV", "MRK", "LLY", "TMO", "ABT", "DHR", "BMY",
+    # Energy
+    "XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO",
+    # Industrial
+    "BA", "CAT", "GE", "HON", "UPS", "RTX", "LMT", "DE", "MMM",
+    # Other
+    "BRK.B", "BRK.A", "SPY", "QQQ", "IWM", "DIA", "VOO", "VTI", "ARKK",
+    # Chinese ADRs
+    "BABA", "JD", "PDD", "BIDU", "NIO", "XPEV", "LI", "BILI", "TAL", "EDU",
+    "NTES", "TME", "IQ", "HUYA", "DOYU", "MOMO", "YY", "BEKE", "TCHP", "IQE"
+}
+
 
 class RecommendationAgent(BaseAgent):
     """股票推荐Agent - 从新闻/社媒中发现潜在机会"""
@@ -99,35 +122,45 @@ class RecommendationAgent(BaseAgent):
         )
     
     def _extract_stock_signals(self, news_items: List) -> Dict:
-        """从新闻中提取股票信号"""
         stock_signals = {}
         
-        # 美股常见股票代码模式
-        ticker_pattern = r'\b([A-Z]{1,5})\b'
+        common_acronyms = {
+            "CEO", "CFO", "CTO", "IPO", "ETF", "API", "USA", "UK", "EU", "UN", 
+            "FDA", "SEC", "GDP", "NYSE", "NASDAQ", "DOW", "ALL", "ARE", "HAS",
+            "NEW", "NOW", "CAN", "WIN", "TOP", "GET", "ONE", "TWO", "BIG",
+            "BEST", "WORST", "FIRST", "LAST", "NEXT", "YEAR", "DAY", "TIME",
+            "TODAY", "THIS", "THAT", "MORE", "LESS", "MOST", "SOME", "MANY",
+            "FOR", "OUT", "SET", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
+        }
         
         for news in news_items:
-            title = news.get("title", "").upper()
+            title = news.get("title", "")
+            title_upper = title.upper()
             source = news.get("source", "")
             
-            # 简单的情绪分析
-            positive_count = sum(1 for kw in POSITIVE_KEYWORDS if kw.upper() in title)
-            negative_count = sum(1 for kw in NEGATIVE_KEYWORDS if kw.upper() in title)
+            positive_count = sum(1 for kw in POSITIVE_KEYWORDS if kw.upper() in title_upper)
+            negative_count = sum(1 for kw in NEGATIVE_KEYWORDS if kw.upper() in title_upper)
             
             if positive_count == 0 and negative_count == 0:
                 sentiment = 0.5
             else:
                 sentiment = positive_count / (positive_count + negative_count)
             
-            # 跳过明显的非股票词汇
-            skip_words = {"CEO", "CFO", "CTO", "IPO", "ETF", "API", "USA", "AI", "UK", "EU", "UN", "FDA", "SEC"}
+            found_tickers = set()
             
-            # 尝试从标题中提取股票代码
-            potential_tickers = re.findall(ticker_pattern, title)
+            for ticker in KNOWN_TICKERS:
+                if re.search(r'\b' + re.escape(ticker) + r'\b', title_upper):
+                    found_tickers.add(ticker)
             
-            for ticker in potential_tickers:
-                if ticker in skip_words or len(ticker) < 2:
+            paren_matches = re.findall(r'\(([A-Z]{1,5})\)', title_upper)
+            for m in paren_matches:
+                if m not in common_acronyms:
+                    found_tickers.add(m)
+            
+            for ticker in found_tickers:
+                if ticker in common_acronyms:
                     continue
-                
+                    
                 if ticker not in stock_signals:
                     stock_signals[ticker] = {
                         "signal": "HOLD",
@@ -143,14 +176,12 @@ class RecommendationAgent(BaseAgent):
                 stock_signals[ticker]["sources"].append(source)
                 stock_signals[ticker]["titles"].append(title[:100])
         
-        # 计算综合分数
         for ticker, data in stock_signals.items():
             if data["sentiment_score"]:
                 avg_sentiment = sum(data["sentiment_score"]) / len(data["sentiment_score"])
             else:
                 avg_sentiment = 0.5
             
-            # 综合分数 = 情绪分数 * 新闻数量权重
             data["bullish_score"] = avg_sentiment * (1 + min(data["news_count"], 5) * 0.1)
             
             if avg_sentiment > 0.6:
@@ -163,14 +194,15 @@ class RecommendationAgent(BaseAgent):
         return stock_signals
     
     def _build_recommendation_text(self, top_picks: List) -> str:
-        """构建推荐文本"""
-        lines = ["📈 热门股票发现:\n"]
+        lines = ["## 📈 发现热门机会\n", "以下是从最新新闻和社媒讨论中提取的潜在机会：\n"]
         
         for symbol, data in top_picks:
             emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(data["signal"], "⚪")
             lines.append(
-                f"{emoji} {symbol}: {data['signal']} (评分:{data['bullish_score']:.1f}, "
-                f"新闻数:{data['news_count']})"
+                f"### {emoji} **{symbol}**\n"
+                f"*   **信号**: `{data['signal']}`\n"
+                f"*   **看涨评分**: `{data['bullish_score']:.2f}`\n"
+                f"*   **相关新闻**: {data['news_count']} 篇\n"
             )
         
         return "\n".join(lines)

@@ -42,10 +42,55 @@ class RSSFetcher:
             "name": "Investing.com",
             "priority": 4
         },
-        "nasdaq": {
-            "url": "https://www.nasdaq.com/feed/rssoutbound?category=Stocks",
-            "name": "Nasdaq",
+        "reuters": {
+            "url": "https://www.reutersagency.com/feed/?best-topics=business-finance",
+            "name": "Reuters",
             "priority": 5
+        },
+        "barrons": {
+            "url": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
+            "name": "Barron's",
+            "priority": 6
+        },
+        "wsj": {
+            "url": "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
+            "name": "WSJ",
+            "priority": 7
+        },
+        "ft": {
+            "url": "https://www.ft.com/rss/home",
+            "name": "Financial Times",
+            "priority": 8
+        },
+        "benzinga": {
+            "url": "https://www.benzinga.com/feed",
+            "name": "Benzinga",
+            "priority": 9
+        },
+        "fool": {
+            "url": "https://www.fool.com/feed/rss/",
+            "name": "The Motley Fool",
+            "priority": 10
+        },
+        "thestreet": {
+            "url": "https://www.thestreet.com/rss/index.htm",
+            "name": "TheStreet",
+            "priority": 11
+        },
+        "finance_google": {
+            "url": "https://news.google.com/rss/search?q=stock+market&hl=en-US&gl=US&ceid=US:en",
+            "name": "Google News Stocks",
+            "priority": 12
+        },
+        "yahoo_finance": {
+            "url": "https://finance.yahoo.com/news/rssindex",
+            "name": "Yahoo Finance",
+            "priority": 13
+        },
+        "yahoo_market": {
+            "url": "https://finance.yahoo.com/rss/stockmarket",
+            "name": "Yahoo Market",
+            "priority": 14
         }
     }
     

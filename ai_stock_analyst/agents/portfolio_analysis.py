@@ -177,30 +177,31 @@ class PortfolioAnalyzer(BaseAgent):
                            total_pnl: float, pnl_percent: float,
                            winners: List[Holding], losers: List[Holding],
                            suggestions: List[str]) -> str:
-        """构建分析文本"""
-        lines = ["📊 持仓分析报告\n"]
-        
-        # 总览
         pnl_emoji = "🟢" if total_pnl >= 0 else "🔴"
-        lines.append(f"总市值: ${total_value:,.2f}")
-        lines.append(f"{pnl_emoji} 总盈亏: ${total_pnl:,.2f} ({pnl_percent:+.2f}%)")
-        lines.append(f"持仓数量: {len(holdings)} 只")
-        lines.append(f"盈利: {len(winners)} 只 | 亏损: {len(losers)} 只")
         
-        # 持仓明细
-        lines.append("\n📈 持仓明细:")
+        lines = [
+            f"# 📊 持仓分析报告\n",
+            f"### 💰 账户概览",
+            f"*   **总市值**: `${total_value:,.2f}`",
+            f"*   **总盈亏**: {pnl_emoji} `${total_pnl:,.2f}` (`{pnl_percent:+.2f}%`)",
+            f"*   **持仓数量**: {len(holdings)} 只",
+            f"*   **表现**: ✨ {len(winners)} 盈利 | 🚨 {len(losers)} 亏损",
+            f"\n---",
+            f"### 📈 持仓明细"
+        ]
+        
         for h in sorted(holdings, key=lambda x: x.unrealized_pnl_percent or 0, reverse=True):
-            pnl_emoji = "🟢" if (h.unrealized_pnl or 0) >= 0 else "🔴"
-            pnl_str = f"{pnl_emoji} {h.symbol}: {h.shares}股 @ ${h.avg_cost:.2f} = ${h.market_value:.2f}"
-            if h.unrealized_pnl_percent is not None:
-                pnl_str += f" ({h.unrealized_pnl_percent:+.2f}%)"
-            lines.append(pnl_str)
+            pnl_icon = "🟢" if (h.unrealized_pnl or 0) >= 0 else "🔴"
+            pnl_val = f"{h.unrealized_pnl_percent:+.2f}%" if h.unrealized_pnl_percent is not None else "N/A"
+            lines.append(
+                f"*   **{h.symbol}**: `{h.shares}`股 | 成本 `${h.avg_cost:.2f}` | 当前 `${h.current_price or 0:.2f}`\n"
+                f"    {pnl_icon} 盈亏: `${h.unrealized_pnl or 0:.2f}` (`{pnl_val}`)"
+            )
         
-        # 建议
         if suggestions:
-            lines.append("\n💡 操作建议:")
+            lines.append(f"\n---\n### 💡 操作建议")
             for s in suggestions:
-                lines.append(f"  • {s}")
+                lines.append(f"*   {s}")
         
         return "\n".join(lines)
     
