@@ -88,3 +88,27 @@ def test_geopolitical_and_trump_headlines_raise_risk():
 
     assert result.indicators["geopolitics_risk_score"] >= 2
     assert result.indicators["triggered"] is True
+
+
+def test_qqq_and_vix_risk_trigger():
+    risk_manager = RiskManager()
+    result = risk_manager.analyze(
+        {
+            "price_data": {
+                "atr_pct": 1.0,
+                "volatility_20d": 1.1,
+                "change_percent": 0.5,
+                "data_quality": 1.0,
+                "market_context": {
+                    "qqq_risk": "HIGH",
+                    "qqq_ret_5d": -3.4,
+                    "vix_risk": "MEDIUM",
+                    "vix_level": 22.8,
+                },
+            },
+            "news": [],
+            "social_data": {"sentiment": {"bearish_pct": 48}},
+        }
+    )
+    assert result.indicators["triggered"] is True
+    assert result.indicators["qqq_risk"] == "HIGH"

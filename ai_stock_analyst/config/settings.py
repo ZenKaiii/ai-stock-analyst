@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     WEB_HOST: str = "0.0.0.0"
     WEB_PORT: int = 8000
     WEB_DEBUG: bool = False
+
+    # IBKR API (TWS/Gateway)
+    IBKR_HOST: str = "127.0.0.1"
+    IBKR_PORT: int = 7497
+    IBKR_CLIENT_ID: int = 21
+    IBKR_ACCOUNT: str = ""
     
     class Config:
         env_file = ".env"

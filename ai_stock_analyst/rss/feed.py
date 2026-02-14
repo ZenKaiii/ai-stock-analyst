@@ -49,25 +49,30 @@ class RSSFetcher:
             "name": "Federal Reserve",
             "priority": 7,
         },
+        "fed_monetary": {
+            "url": "https://www.federalreserve.gov/feeds/press_monetary.xml",
+            "name": "Federal Reserve Monetary Policy",
+            "priority": 8,
+        },
         "sec_press": {
             "url": "https://www.sec.gov/news/pressreleases.rss",
             "name": "SEC Press Releases",
-            "priority": 8,
+            "priority": 9,
         },
         "sec_speeches": {
             "url": "https://www.sec.gov/news/speeches-statements.rss",
             "name": "SEC Speeches",
-            "priority": 9,
+            "priority": 10,
         },
         "cftc_press": {
             "url": "https://www.cftc.gov/PressRoom/PressReleases/rss.xml",
             "name": "CFTC Press Releases",
-            "priority": 10,
+            "priority": 11,
         },
         "imf_news": {
             "url": "https://www.imf.org/en/News/RSS",
             "name": "IMF News",
-            "priority": 11,
+            "priority": 12,
         },
     }
 

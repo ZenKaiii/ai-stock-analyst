@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 from ai_stock_analyst.agents.base import BaseAgent, AnalysisResult
 from ai_stock_analyst.rss import fetch_news
+from ai_stock_analyst.data.fetcher import fetch_stock_price
 
 
 POSITIVE_KEYWORDS = [
@@ -77,10 +78,13 @@ class RecommendationAgent(BaseAgent):
         # 从新闻中提取股票代码和情绪
         stock_signals = self._extract_stock_signals(all_news)
         
+        # 用技术面与来源多样性校准推荐质量
+        stock_signals = self._enrich_with_market_quality(stock_signals)
+
         # 排序找出最强的看涨信号
         sorted_stocks = sorted(
             stock_signals.items(),
-            key=lambda x: x[1]["bullish_score"],
+            key=lambda x: x[1].get("composite_score", x[1]["bullish_score"]),
             reverse=True
         )
         
@@ -112,6 +116,7 @@ class RecommendationAgent(BaseAgent):
                     {
                         "symbol": symbol,
                         "score": round(data["bullish_score"], 2),
+                        "composite_score": round(data.get("composite_score", data["bullish_score"]), 2),
                         "signal": data["signal"],
                         "news_count": data["news_count"]
                     }
@@ -202,10 +207,51 @@ class RecommendationAgent(BaseAgent):
                 f"### {emoji} **{symbol}**\n"
                 f"*   **信号**: `{data['signal']}`\n"
                 f"*   **看涨评分**: `{data['bullish_score']:.2f}`\n"
+                f"*   **综合评分**: `{data.get('composite_score', data['bullish_score']):.2f}`\n"
                 f"*   **相关新闻**: {data['news_count']} 篇\n"
             )
         
         return "\n".join(lines)
+
+    def _enrich_with_market_quality(self, stock_signals: Dict) -> Dict:
+        """结合趋势/波动与来源多样性，降低纯新闻噪音。"""
+        candidates = sorted(
+            stock_signals.items(), key=lambda x: x[1]["news_count"], reverse=True
+        )[:12]
+
+        for symbol, data in candidates:
+            price = fetch_stock_price(symbol)
+            trend = price.get("trend", "NEUTRAL")
+            rsi14 = float(price.get("rsi14", 50) or 50)
+            macd_hist = float(price.get("macd_hist", 0) or 0)
+            atr_pct = float(price.get("atr_pct", 0) or 0)
+
+            momentum = 0.5
+            if trend == "BULLISH":
+                momentum += 0.2
+            if macd_hist > 0:
+                momentum += 0.15
+            if 45 <= rsi14 <= 70:
+                momentum += 0.1
+            if atr_pct > 4:
+                momentum -= 0.15
+
+            source_diversity = min(len(set(data["sources"])) / 4, 1.0)
+            risk_penalty = 0.15 if atr_pct > 4 else 0.0
+            composite = (
+                data["bullish_score"] * 0.55
+                + momentum * 0.30
+                + source_diversity * 0.15
+                - risk_penalty
+            )
+            data["composite_score"] = max(composite, 0.0)
+
+        # 未进入候选池的股票退化为原分数
+        for _, data in stock_signals.items():
+            if "composite_score" not in data:
+                data["composite_score"] = data["bullish_score"]
+
+        return stock_signals
     
     def _extract_risks(self, top_picks: List) -> List[str]:
         """提取风险因素"""
@@ -257,6 +303,7 @@ def scan_for_opportunities(max_news: int = 100) -> Dict:
                 "symbol": pick["symbol"],
                 "signal": pick["signal"],
                 "bullish_score": pick["score"],
+                "composite_score": pick.get("composite_score", pick["score"]),
                 "news_count": pick["news_count"]
             })
     

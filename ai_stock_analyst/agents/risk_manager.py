@@ -14,6 +14,7 @@ class RiskManager(BaseAgent):
         price_data = data.get("price_data", {})
         news_items = data.get("news", [])
         social_data = data.get("social_data", {})
+        market_context = price_data.get("market_context", {}) or {}
 
         triggers: List[str] = []
 
@@ -34,6 +35,15 @@ class RiskManager(BaseAgent):
             triggers.append(f"数据质量不足({data_quality:.2f})")
         if bearish_pct >= 70:
             triggers.append(f"社媒看空比例过高({bearish_pct:.1f}%)")
+
+        qqq_risk = market_context.get("qqq_risk", "LOW")
+        qqq_ret_5d = float(market_context.get("qqq_ret_5d", 0) or 0)
+        vix_risk = market_context.get("vix_risk", "LOW")
+        vix_level = float(market_context.get("vix_level", 0) or 0)
+        if qqq_risk in {"MEDIUM", "HIGH"}:
+            triggers.append(f"QQQ风险状态:{qqq_risk}(5日{qqq_ret_5d:.2f}%)")
+        if vix_risk in {"MEDIUM", "HIGH"}:
+            triggers.append(f"VIX风险状态:{vix_risk}(当前{vix_level:.2f})")
 
         event_keywords = ["earnings", "fomc", "cpi", "fed", "财报", "利率决议"]
         joined_titles = " ".join(item.get("title", "").lower() for item in news_items[:10])
@@ -79,6 +89,8 @@ class RiskManager(BaseAgent):
                 "max_position_size": max_position_size,
                 "geopolitics_risk_score": geopolitics_score,
                 "geopolitics_hits": geopolitics_hits,
+                "qqq_risk": qqq_risk,
+                "vix_risk": vix_risk,
             },
             risks=triggers,
         )

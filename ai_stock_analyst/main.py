@@ -14,6 +14,7 @@ from ai_stock_analyst.rss import fetch_news, fetch_social
 from ai_stock_analyst.agents import analyze_stock
 from ai_stock_analyst.agents.recommendation import scan_for_opportunities
 from ai_stock_analyst.agents.portfolio_analysis import analyze_portfolio, add_holding, get_holdings
+from ai_stock_analyst.broker import fetch_ibkr_positions
 from ai_stock_analyst.notification import get_notification_manager
 
 logging.basicConfig(
@@ -33,6 +34,7 @@ def main():
     parser.add_argument("--portfolio", action="store_true", help="Analyze portfolio holdings")
     parser.add_argument("--add-holding", type=str, help="Add holding: SYMBOL,SHARES,COST")
     parser.add_argument("--list-holdings", action="store_true", help="List all holdings")
+    parser.add_argument("--sync-ibkr-holdings", action="store_true", help="Sync holdings from IBKR TWS/Gateway")
     
     args = parser.parse_args()
     
@@ -56,6 +58,27 @@ def main():
         for h in holdings:
             print(f"{h.get('symbol', ''):<8} {h.get('shares', 0):<10.2f} ${h.get('avg_cost', 0):<11.2f} ${h.get('current_price', 0):<11.2f} ${h.get('market_value', 0):<13.2f} ${h.get('unrealized_pnl', 0):<11.2f}")
         return
+
+    if args.sync_ibkr_holdings:
+        try:
+            ib_holdings = fetch_ibkr_positions()
+            if not ib_holdings:
+                print("No holdings found from IBKR.")
+                if not args.portfolio:
+                    return
+
+            for h in ib_holdings:
+                add_holding(h["symbol"], float(h["shares"]), float(h["avg_cost"]), notes="synced-from-ibkr")
+
+            print(f"Synced {len(ib_holdings)} holdings from IBKR.")
+            for h in ib_holdings:
+                print(f"- {h['symbol']}: {h['shares']} @ {h['avg_cost']}")
+            if not args.portfolio:
+                return
+        except Exception as e:
+            print(f"IBKR sync failed: {e}")
+            if not args.portfolio:
+                return
     
     if args.discover:
         logger.info("Discovering trending stocks from news...")

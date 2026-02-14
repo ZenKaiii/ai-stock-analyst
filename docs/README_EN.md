@@ -195,6 +195,24 @@ Outputs:
 - `reports/backtest_*.md`
 - `reports/backtest_*.json`
 
+## 🧾 IBKR Portfolio Sync (Optional)
+
+You can sync holdings directly from IBKR TWS/Gateway:
+
+```bash
+pip install ib_async
+# or: pip install ib_insync
+
+stock-analyze --sync-ibkr-holdings
+stock-analyze --sync-ibkr-holdings --portfolio
+```
+
+Environment variables:
+- `IBKR_HOST` (default `127.0.0.1`)
+- `IBKR_PORT` (default `7497`)
+- `IBKR_CLIENT_ID` (default `21`)
+- `IBKR_ACCOUNT` (optional account filter)
+
 ### Environment Variables (.env file)
 
 ```bash

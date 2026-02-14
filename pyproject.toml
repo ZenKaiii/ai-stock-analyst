@@ -84,6 +84,7 @@ packages = [
     "ai_stock_analyst",
     "ai_stock_analyst.agents",
     "ai_stock_analyst.config",
+    "ai_stock_analyst.broker",
     "ai_stock_analyst.data",
     "ai_stock_analyst.database",
     "ai_stock_analyst.llm",

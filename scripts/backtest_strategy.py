@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
 
+import pandas as pd
 import yfinance as yf
 
 from ai_stock_analyst.data.features import calculate_features
@@ -53,13 +54,22 @@ def run_backtest(symbol: str, period: str) -> BacktestMetrics:
     if df.empty or len(df) < 80:
         return BacktestMetrics(symbol, 0.0, 0.0, 0.0, 0, 0.0)
 
-    close = df["Close"].dropna()
+    # yfinance may return MultiIndex columns; normalize to a Series.
+    close = _extract_close_series(df)
+    if close.empty or len(close) < 80:
+        return BacktestMetrics(symbol, 0.0, 0.0, 0.0, 0, 0.0)
+
+    df_norm = _normalize_ohlcv(df)
+    if df_norm.empty:
+        return BacktestMetrics(symbol, 0.0, 0.0, 0.0, 0, 0.0)
+
+    max_len = min(len(df_norm), len(close))
     strategy_curve = [1.0]
     benchmark_curve = [1.0]
     trade_results: List[float] = []
 
-    for i in range(40, len(df) - 1):
-        hist = df.iloc[: i + 1]
+    for i in range(40, max_len - 1):
+        hist = df_norm.iloc[: i + 1]
         features = calculate_features(hist)
         signal = decide_signal(features)
 
@@ -98,6 +108,48 @@ def run_backtest(symbol: str, period: str) -> BacktestMetrics:
         trades=trades,
         hit_rate_pct=round(hit_rate, 2),
     )
+
+
+def _extract_close_series(df: pd.DataFrame) -> pd.Series:
+    if "Close" in df.columns:
+        close = df["Close"]
+    elif isinstance(df.columns, pd.MultiIndex):
+        try:
+            close = df.xs("Close", axis=1, level=0)
+        except Exception:
+            return pd.Series(dtype=float)
+    else:
+        return pd.Series(dtype=float)
+
+    if isinstance(close, pd.DataFrame):
+        if close.empty:
+            return pd.Series(dtype=float)
+        close = close.iloc[:, 0]
+    return pd.to_numeric(close, errors="coerce").dropna()
+
+
+def _normalize_ohlcv(df: pd.DataFrame) -> pd.DataFrame:
+    if not isinstance(df, pd.DataFrame) or df.empty:
+        return pd.DataFrame()
+
+    if isinstance(df.columns, pd.MultiIndex):
+        out = pd.DataFrame(index=df.index)
+        for field in ["Open", "High", "Low", "Close", "Volume"]:
+            try:
+                col = df.xs(field, axis=1, level=0)
+                if isinstance(col, pd.DataFrame):
+                    out[field] = pd.to_numeric(col.iloc[:, 0], errors="coerce")
+                else:
+                    out[field] = pd.to_numeric(col, errors="coerce")
+            except Exception:
+                out[field] = pd.NA
+        return out.dropna(subset=["Close"])
+
+    expected = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in df.columns]
+    out = df[expected].copy()
+    for c in expected:
+        out[c] = pd.to_numeric(out[c], errors="coerce")
+    return out.dropna(subset=["Close"])
 
 
 def write_reports(metrics: List[BacktestMetrics], output_dir: Path) -> Path:

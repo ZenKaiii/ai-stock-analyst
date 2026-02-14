@@ -326,7 +326,7 @@ stock-analyze --discover
 **功能说明：**
 - 扫描所有RSS新闻源
 - 提取股票代码和情绪关键词
-- 计算看涨评分 (bullish_score)
+- 计算看涨评分 + 综合评分（情绪+趋势+来源多样性）
 - 推荐Top 5热门股票
 
 ---
@@ -369,6 +369,29 @@ Actions → Daily Stock Analysis → Run workflow → 选择 mode 为 "portfolio
 - 计算未实现盈亏
 - 风险分析（集中度、亏损过多等）
 - 操作建议（卖出锁定利润、止损等）
+
+### 3. IBKR持仓同步（美国区可用）
+
+支持从 IBKR TWS/Gateway 直接拉取持仓并写入本地持仓表（可再接 `--portfolio` 自动分析）。
+
+```bash
+# 先安装任一SDK（推荐 ib_async）
+pip install ib_async
+# 或
+pip install ib_insync
+
+# 仅同步
+stock-analyze --sync-ibkr-holdings
+
+# 同步后立即做持仓分析
+stock-analyze --sync-ibkr-holdings --portfolio
+```
+
+需要在 `.env` 配置：
+- `IBKR_HOST`（默认 `127.0.0.1`）
+- `IBKR_PORT`（默认 `7497`，实盘常见 `7496`）
+- `IBKR_CLIENT_ID`（默认 `21`）
+- `IBKR_ACCOUNT`（可选）
 
 ---
 
@@ -414,7 +437,9 @@ AI Stock Analyzer
 
 ### 钉钉/飞书推送
 
-支持Markdown格式，包含：
+钉钉已优化为移动端友好的纯文本换行格式（避免长段挤成一行）；飞书/企业微信继续使用 markdown 卡片。
+
+通知包含：
 - 📊 分析结果摘要
 - 🎯 买卖信号
 - 💰 建议价格（入场/止损/目标）
