@@ -183,6 +183,33 @@ ai-stock-analyst/
 
 ---
 
+## 📐 Spec 模式开发（Spec Kit）
+
+本项目已落地一套可执行的 Spec 文档骨架，用于按需求驱动推进多 Agent 升级。
+
+### 已创建文件
+
+- `.specify/memory/constitution.md`
+- `specs/001-risk-aware-multi-agent-upgrade/spec.md`
+- `specs/001-risk-aware-multi-agent-upgrade/plan.md`
+- `specs/001-risk-aware-multi-agent-upgrade/tasks.md`
+
+### 推荐执行顺序
+
+1. 先读宪章：`constitution.md`（定义硬约束）
+2. 再确认需求：`spec.md`（定义目标与验收）
+3. 按实施计划：`plan.md`（按里程碑推进）
+4. 逐项落地：`tasks.md`（按任务执行并打勾）
+
+### 对应当前升级方向
+
+- 多角色 Agent（Fundamental/Bull/Bear/Risk）
+- 风控闸门（Risk Gate）
+- 技术指标扩展（RSI/MACD/ATR）
+- 结构化事件源 + 回测报告
+
+---
+
 ## 🔧 详细配置说明
 
 ### 环境变量配置（.env文件）
