@@ -6,7 +6,7 @@ from typing import Dict, List
 
 from ai_stock_analyst.agents.base import BaseAgent, AnalysisResult
 from ai_stock_analyst.rss import fetch_news
-from ai_stock_analyst.data.fetcher import fetch_stock_price
+from ai_stock_analyst.data import fetch_stock_price, load_us_equity_universe, prefilter_universe
 
 
 POSITIVE_KEYWORDS = [
@@ -400,7 +400,12 @@ class RecommendationAgent(BaseAgent):
         return risks if risks else ["市场有风险，投资需谨慎"]
 
 
-def scan_for_opportunities(max_news: int = 100) -> Dict:
+def scan_for_opportunities(
+    max_news: int = 180,
+    universe_size: int = 1500,
+    prefilter_size: int = 120,
+    final_size: int = 21,
+) -> Dict:
     """
     扫描新闻发现潜在机会股
     
@@ -413,7 +418,7 @@ def scan_for_opportunities(max_news: int = 100) -> Dict:
     import logging
     logger = logging.getLogger(__name__)
     
-    logger.info("开始扫描热门股票...")
+    logger.info("开始扫描全市场热门股票...")
     
     # 获取所有新闻
     all_news = fetch_news(None)[:max_news]
@@ -422,39 +427,271 @@ def scan_for_opportunities(max_news: int = 100) -> Dict:
         logger.warning("没有获取到新闻")
         return {"recommendations": [], "error": "No news available"}
     
-    logger.info(f"获取到 {len(all_news)} 条新闻")
-    
-    # 提取股票信号
+    logger.info(f"获取到 {len(all_news)} 条新闻，开始构建美股候选池...")
+
+    universe = load_us_equity_universe(max_symbols=max(universe_size, 200))
+    logger.info(f"候选池加载完成，共 {len(universe)} 只")
+
+    prefiltered = prefilter_universe(universe, top_k=max(prefilter_size, 30))
+    logger.info(f"预筛完成，共 {len(prefiltered)} 只")
+
+    if not prefiltered:
+        # fallback: keep legacy behavior based on news extraction.
+        logger.warning("预筛无结果，回退到新闻候选模式。")
+        agent = RecommendationAgent()
+        news_data = {
+            "all_news": [
+                {"title": n.title, "source": n.source, "summary": n.summary, "link": n.link}
+                for n in all_news
+            ]
+        }
+        result = agent.analyze(news_data)
+        recommendations = []
+        if result.indicators.get("top_picks"):
+            for pick in result.indicators["top_picks"]:
+                recommendations.append(
+                    {
+                        "symbol": pick["symbol"],
+                        "signal": pick["signal"],
+                        "bullish_score": pick["score"],
+                        "composite_score": pick.get("composite_score", pick["score"]),
+                        "news_count": pick["news_count"],
+                        "brief_analysis": pick.get("brief_analysis", ""),
+                        "recommend_reason": pick.get("recommend_reason", ""),
+                        "evidence_news": pick.get("evidence_news", []),
+                        "company_name": pick.get("company_name", pick["symbol"]),
+                        "sector": pick.get("sector", ""),
+                        "industry": pick.get("industry", ""),
+                        "business": pick.get("business", ""),
+                    }
+                )
+        return {
+            "recommendations": recommendations,
+            "summary": result.reasoning,
+            "signal": result.signal,
+            "confidence": result.confidence,
+            "scan_stats": {
+                "scanned_universe": len(universe),
+                "prefiltered": 0,
+                "scored": len(recommendations),
+                "final_count": len(recommendations),
+            },
+        }
+
     agent = RecommendationAgent()
-    news_data = {
-        "all_news": [
-            {"title": n.title, "source": n.source, "summary": n.summary, "link": n.link}
-            for n in all_news
-        ]
-    }
-    result = agent.analyze(news_data)
-    
-    recommendations = []
-    if result.indicators.get("top_picks"):
-        for pick in result.indicators["top_picks"]:
-            recommendations.append({
-                "symbol": pick["symbol"],
-                "signal": pick["signal"],
-                "bullish_score": pick["score"],
-                "composite_score": pick.get("composite_score", pick["score"]),
-                "news_count": pick["news_count"],
-                "brief_analysis": pick.get("brief_analysis", ""),
-                "recommend_reason": pick.get("recommend_reason", ""),
-                "evidence_news": pick.get("evidence_news", []),
-                "company_name": pick.get("company_name", pick["symbol"]),
-                "sector": pick.get("sector", ""),
-                "industry": pick.get("industry", ""),
-                "business": pick.get("business", ""),
-            })
-    
+    news_pool = [
+        {"title": n.title, "source": n.source, "summary": n.summary, "link": n.link}
+        for n in all_news
+    ]
+
+    scored = []
+    for row in prefiltered:
+        symbol = row["symbol"]
+        price = fetch_stock_price(symbol)
+        if "error" in price:
+            continue
+
+        symbol_news = _match_news_for_symbol(symbol, news_pool, max_items=4)
+        news_sentiment = _calc_news_sentiment(symbol_news)
+        technical = _calc_technical_score(price)
+        fundamentals = _calc_fundamental_score(price)
+        prefilter_norm = _normalize_prefilter_score(float(row.get("prefilter_score", 0)))
+        atr_pct = float(price.get("atr_pct", 0) or 0)
+        risk_penalty = 0.08 if atr_pct >= 6 else 0.0
+
+        composite = (
+            technical * 0.36
+            + fundamentals * 0.24
+            + news_sentiment * 0.20
+            + prefilter_norm * 0.20
+            - risk_penalty
+        )
+        composite = max(0.0, min(1.0, composite))
+
+        if composite >= 0.72:
+            signal = "BUY"
+        elif composite >= 0.56:
+            signal = "HOLD"
+        else:
+            signal = "HOLD"
+
+        company = price.get("name", symbol)
+        sector = price.get("sector", "")
+        industry = price.get("industry", "")
+        business = agent._describe_business_for_beginner(
+            company=company,
+            business=price.get("business_summary", ""),
+            sector=agent._to_cn_label(sector or "未知板块"),
+            industry=agent._to_cn_label(industry or "未知行业"),
+        )
+        evidence_news = agent._summarize_news_evidence(symbol_news[:2]) if symbol_news else ["暂无直接新闻，主要依据量价与财报稳定性评分。"]
+
+        recommend_reason = (
+            f"预筛得分{row.get('prefilter_score', 0):.2f}，技术得分{technical:.2f}，"
+            f"财报稳定性得分{fundamentals:.2f}，新闻得分{news_sentiment:.2f}。"
+        )
+        brief = (
+            f"趋势{price.get('trend', 'NEUTRAL')}，"
+            f"RSI14={float(price.get('rsi14', 50) or 50):.1f}，"
+            f"MACD柱={float(price.get('macd_hist', 0) or 0):.3f}，"
+            f"ATR%={atr_pct:.2f}。"
+        )
+
+        scored.append(
+            {
+                "symbol": symbol,
+                "signal": signal,
+                "bullish_score": round(news_sentiment, 2),
+                "composite_score": round(composite, 2),
+                "score_100": round(composite * 100, 1),
+                "news_count": len(symbol_news),
+                "brief_analysis": brief,
+                "recommend_reason": recommend_reason,
+                "evidence_news": evidence_news,
+                "company_name": company,
+                "sector": agent._to_cn_label(sector or "未知板块"),
+                "industry": agent._to_cn_label(industry or "未知行业"),
+                "business": business,
+                "entry_price": price.get("current_price", 0),
+                "target_price": round(float(price.get("current_price", 0) or 0) * 1.08, 2),
+                "prefilter_score": round(float(row.get("prefilter_score", 0)), 2),
+            }
+        )
+
+    scored.sort(key=lambda x: x["composite_score"], reverse=True)
+    final_count = min(max(final_size, 5), len(scored))
+    recommendations = scored[:final_count]
+    top_pick = recommendations[0] if recommendations else None
+    watchlist = recommendations[1:21] if len(recommendations) > 1 else []
+
+    summary_lines = [
+        "## 📈 全市场热门机会（Top1 + 20备选）",
+        "",
+        "### 扫描统计",
+        f"- 扫描股票: {len(universe)} 只",
+        f"- 通过预筛: {len(prefiltered)} 只",
+        f"- 进入评分: {len(scored)} 只",
+        f"- 最终推荐: {1 if top_pick else 0} 只 Top1 + {len(watchlist)} 只备选",
+        "",
+    ]
+
+    if top_pick:
+        summary_lines.extend(
+            [
+                "### 🏆 Top1 推荐",
+                f"- 股票: {top_pick['symbol']} ({top_pick['company_name']})",
+                f"- 结论: {top_pick['signal']} | 综合评分: {top_pick['score_100']}/100",
+                f"- 入场参考: ${top_pick['entry_price']} | 目标参考: ${top_pick['target_price']}",
+                f"- 推荐原因: {top_pick['recommend_reason']}",
+                "",
+            ]
+        )
+
+    if watchlist:
+        summary_lines.append("### 📋 20只备选")
+        for idx, item in enumerate(watchlist, start=1):
+            summary_lines.append(
+                f"{idx}. {item['symbol']}({item['company_name']}) | {item['signal']} | "
+                f"{item['score_100']}/100 | 入场${item['entry_price']} 目标${item['target_price']}"
+            )
+
+    summary = "\n".join(summary_lines)
+    confidence = round(min(0.95, (top_pick.get("composite_score", 0) if top_pick else 0.0)), 2)
+    signal = "BUY" if top_pick and top_pick.get("signal") == "BUY" else "HOLD"
     return {
         "recommendations": recommendations,
-        "summary": result.reasoning,
-        "signal": result.signal,
-        "confidence": result.confidence
+        "top_pick": top_pick,
+        "watchlist": watchlist,
+        "summary": summary,
+        "signal": signal,
+        "confidence": confidence,
+        "scan_stats": {
+            "scanned_universe": len(universe),
+            "prefiltered": len(prefiltered),
+            "scored": len(scored),
+            "final_count": len(recommendations),
+        },
     }
+
+
+def _match_news_for_symbol(symbol: str, news_pool: List[Dict], max_items: int = 4) -> List[Dict]:
+    symbol_upper = symbol.upper()
+    direct = re.compile(rf"\b{re.escape(symbol_upper)}\b")
+    cashtag = re.compile(rf"\${re.escape(symbol_upper)}\b")
+    out = []
+    for item in news_pool:
+        title = str(item.get("title", "")).upper()
+        if direct.search(title) or cashtag.search(title):
+            out.append(item)
+        if len(out) >= max_items:
+            break
+    return out
+
+
+def _calc_news_sentiment(news_items: List[Dict]) -> float:
+    if not news_items:
+        return 0.5
+    vals = []
+    for news in news_items:
+        text = f"{news.get('title', '')} {news.get('summary', '')}".upper()
+        pos = sum(1 for kw in POSITIVE_KEYWORDS if kw.upper() in text)
+        neg = sum(1 for kw in NEGATIVE_KEYWORDS if kw.upper() in text)
+        if pos == 0 and neg == 0:
+            vals.append(0.5)
+        else:
+            vals.append(pos / (pos + neg))
+    return max(0.0, min(1.0, sum(vals) / len(vals)))
+
+
+def _calc_technical_score(price: Dict) -> float:
+    trend = price.get("trend", "NEUTRAL")
+    rsi14 = float(price.get("rsi14", 50) or 50)
+    macd_hist = float(price.get("macd_hist", 0) or 0)
+    atr_pct = float(price.get("atr_pct", 0) or 0)
+    score = 0.5
+    if trend == "BULLISH":
+        score += 0.2
+    if macd_hist > 0:
+        score += 0.15
+    if 45 <= rsi14 <= 68:
+        score += 0.08
+    if atr_pct > 5:
+        score -= 0.12
+    return max(0.0, min(1.0, score))
+
+
+def _calc_fundamental_score(price: Dict) -> float:
+    rev = float(price.get("revenue_growth", 0) or 0)
+    earn = float(price.get("earnings_growth", 0) or 0)
+    margin = float(price.get("profit_margins", 0) or 0)
+    roe = float(price.get("return_on_equity", 0) or 0)
+    debt = float(price.get("debt_to_equity", 0) or 0)
+    pe = float(price.get("pe_ratio", 0) or 0)
+
+    score = 0.5
+    if rev > 0.08:
+        score += 0.12
+    elif rev < 0:
+        score -= 0.10
+
+    if earn > 0.08:
+        score += 0.12
+    elif earn < 0:
+        score -= 0.10
+
+    if margin > 0.12:
+        score += 0.08
+    if roe > 0.12:
+        score += 0.08
+    if debt > 200:
+        score -= 0.10
+    if pe > 85:
+        score -= 0.08
+    return max(0.0, min(1.0, score))
+
+
+def _normalize_prefilter_score(score: float) -> float:
+    # Map a wide score range into [0, 1] with a soft cap.
+    # Typical score range in practice is around [-8, 20].
+    x = (score + 8) / 28
+    return max(0.0, min(1.0, x))

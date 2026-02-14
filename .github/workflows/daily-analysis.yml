@@ -100,7 +100,16 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-        run: stock-analyze --discover
+          DISCOVER_UNIVERSE_SIZE: ${{ vars.DISCOVER_UNIVERSE_SIZE || '1500' }}
+          DISCOVER_PREFILTER_SIZE: ${{ vars.DISCOVER_PREFILTER_SIZE || '120' }}
+          DISCOVER_FINAL_SIZE: ${{ vars.DISCOVER_FINAL_SIZE || '21' }}
+          DISCOVER_MAX_NEWS: ${{ vars.DISCOVER_MAX_NEWS || '180' }}
+        run: |
+          stock-analyze --discover \
+            --discover-universe-size "${DISCOVER_UNIVERSE_SIZE}" \
+            --discover-prefilter-size "${DISCOVER_PREFILTER_SIZE}" \
+            --discover-final-size "${DISCOVER_FINAL_SIZE}" \
+            --discover-max-news "${DISCOVER_MAX_NEWS}"
 
       - name: Analyze portfolio
         if: github.event.inputs.mode == 'portfolio'

@@ -20,6 +20,7 @@
 | 🧩 Multi-Agent | Role-based Reasoning | Macro + Technical + Liquidity + Fundamental + Bull/Bear + Risk orchestration |
 | 🛡️ Risk Gate | Hard Risk Override | Downgrades BUY under volatility/event/geopolitical risk |
 | 📡 News | RSS Aggregation | Real-time news from Seeking Alpha, MarketWatch, CNBC, etc. |
+| 🔎 Discovery | Universe Scan | Market-wide prefilter + scoring, outputs Top1 + 20 watchlist |
 | 🐦 Social | Sentiment Monitor | Twitter/X and Reddit discussion sentiment analysis |
 | 🧠 LLM | Dual Model Support | Alibaba Bailian (primary) + Google Gemini (fallback) |
 | 📱 Push | Multi-channel | Telegram, DingTalk, Feishu, WeChat Work |
@@ -197,6 +198,9 @@ The repository includes a spec-driven execution scaffold:
 - `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/spec.md`
 - `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/plan.md`
 - `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/tasks.md`
+- `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/spec.md`
+- `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/plan.md`
+- `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/tasks.md`
 
 Recommended order:
 1. Read constitution (hard constraints)
@@ -213,6 +217,21 @@ python scripts/backtest_strategy.py --symbols SPY,QQQ --period 2y --output-dir r
 Outputs:
 - `reports/backtest_*.md`
 - `reports/backtest_*.json`
+
+## 🔎 Market Discovery Command
+
+```bash
+stock-analyze --discover \
+  --discover-universe-size 1500 \
+  --discover-prefilter-size 120 \
+  --discover-final-size 21 \
+  --discover-max-news 180
+```
+
+Outputs include:
+- scan statistics (scanned/prefiltered/scored/final)
+- Top1 recommendation
+- 20-symbol watchlist
 
 ## 🧾 IBKR Portfolio Sync (Optional)
 
@@ -259,6 +278,14 @@ IBKR API onboarding for beginners:
 - CPAPI also does not use a simple permanent API-key flow for retail; it requires CP Gateway and authenticated session handling.
 - For web/mobile-only users (no TWS), CPAPI + self-hosted runner is the practical path.
 - The codebase now supports `IBKR_API_MODE=cpapi` for holdings sync.
+
+Reference implementation notes from `thetagang`:
+- Repo: <https://github.com/brndnmtthws/thetagang>
+- Uses `ib_async` + `IBC` + `Watchdog` for robust TWS/Gateway lifecycle and reconnect.
+- Provides `dry-run` and order-state tracking before live order submission.
+- Practical takeaway for this project:
+  - holdings-only: CPAPI path is fine;
+  - trading automation: prefer Socket API path with explicit dry-run and order audit layers.
 
 How to confirm values in TWS/Gateway:
 1. Open TWS / IB Gateway.
@@ -382,6 +409,9 @@ Supports Markdown format, including:
 - 📰 News summary + interpretation
 - 📚 Beginner indicator explanation (RSI/MACD/ATR)
 - ✅ Action suggestions by scenario (no position / holding)
+
+For DingTalk mobile rendering stability, the notifier downgrades fragile markdown
+markers (bold/inline-code) into plain text when needed to avoid stray `*` artifacts.
 
 ---
 

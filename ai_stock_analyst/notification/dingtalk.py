@@ -62,6 +62,7 @@ class DingTalkNotifier(BaseNotifier):
         """将通用 markdown 调整为钉钉更稳定的 markdown 形式。"""
         text = (content or "").replace("\r\n", "\n")
         text = self._strip_duplicate_heading(title, text)
+        text = self._downgrade_unsupported_markdown(text)
         text = text.replace("---", "\n\n---\n\n")
         text = re.sub(r"^[ \t]*•\s*", "- ", text, flags=re.MULTILINE)
         text = re.sub(r"^[ \t]*[-*][ \t]*[•·*-][ \t]*", "- ", text, flags=re.MULTILINE)
@@ -70,6 +71,9 @@ class DingTalkNotifier(BaseNotifier):
         # 避免过深标题在钉钉端显示不稳定
         text = re.sub(r"^####\s+", "### ", text, flags=re.MULTILINE)
         text = re.sub(r"\n{3,}", "\n\n", text).strip()
+        # 如果正文已经有标题，就不再附加外层标题，避免重复
+        if re.match(r"^\s*##\s+", text):
+            return text
         return f"## {title}\n\n{text}"
 
     def _strip_duplicate_heading(self, title: str, content: str) -> str:
@@ -92,6 +96,13 @@ class DingTalkNotifier(BaseNotifier):
         text = re.sub(r"[\U0001F300-\U0001FAFF\u2600-\u27BF]", "", text)
         text = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "", text)
         return text.lower().strip()
+
+    def _downgrade_unsupported_markdown(self, text: str) -> str:
+        # 钉钉 markdown 子集对粗体/行内代码在列表里渲染不稳定，统一降级为纯文本。
+        text = re.sub(r"\*\*([^*\n]+)\*\*", r"\1", text)
+        text = re.sub(r"__([^_\n]+)__", r"\1", text)
+        text = text.replace("`", "")
+        return text
 
     def _split_markdown(self, text: str, max_len: int = 3500):
         if len(text) <= max_len:

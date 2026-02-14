@@ -32,6 +32,10 @@ def main():
     parser.add_argument("--type", type=str, default="full", choices=["quick", "full", "deep"])
     parser.add_argument("--no-notify", action="store_true", help="Disable notifications")
     parser.add_argument("--discover", action="store_true", help="Discover trending stocks from news")
+    parser.add_argument("--discover-universe-size", type=int, default=1500, help="Discovery: max universe size")
+    parser.add_argument("--discover-prefilter-size", type=int, default=120, help="Discovery: prefilter size")
+    parser.add_argument("--discover-final-size", type=int, default=21, help="Discovery: final recommendation size")
+    parser.add_argument("--discover-max-news", type=int, default=180, help="Discovery: max news items")
     parser.add_argument("--portfolio", action="store_true", help="Analyze portfolio holdings")
     parser.add_argument("--add-holding", type=str, help="Add holding: SYMBOL,SHARES,COST")
     parser.add_argument("--list-holdings", action="store_true", help="List all holdings")
@@ -104,20 +108,34 @@ def main():
     
     if args.discover:
         logger.info("Discovering trending stocks from news...")
-        result = scan_for_opportunities()
+        result = scan_for_opportunities(
+            max_news=max(args.discover_max_news, 50),
+            universe_size=max(args.discover_universe_size, 200),
+            prefilter_size=max(args.discover_prefilter_size, 30),
+            final_size=max(args.discover_final_size, 5),
+        )
         
         print("\n" + "="*50)
         print("📈 热门股票发现")
         print("="*50)
+
+        stats = result.get("scan_stats", {})
+        if stats:
+            print(
+                f"扫描: {stats.get('scanned_universe', 0)} | "
+                f"预筛: {stats.get('prefiltered', 0)} | "
+                f"评分: {stats.get('scored', 0)} | "
+                f"最终: {stats.get('final_count', 0)}"
+            )
         
         if result.get("recommendations"):
-            for rec in result["recommendations"]:
+            for idx, rec in enumerate(result["recommendations"], start=1):
                 emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(rec["signal"], "⚪")
                 company = rec.get("company_name", rec["symbol"])
                 sector = rec.get("sector", "未知板块")
                 print(
-                    f"{emoji} {rec['symbol']:<6} ({company}) | 板块: {sector} | 信号: {rec['signal']:<5} | "
-                    f"看涨: {rec['bullish_score']:.2f} | 综合: {rec.get('composite_score', rec['bullish_score']):.2f} | 新闻: {rec['news_count']}"
+                    f"{idx:>2}. {emoji} {rec['symbol']:<6} ({company}) | 板块: {sector} | 信号: {rec['signal']:<5} | "
+                    f"综合: {rec.get('score_100', rec.get('composite_score', 0)*100):.1f}/100 | 新闻: {rec['news_count']}"
                 )
         
         print("\n" + result.get("summary", ""))

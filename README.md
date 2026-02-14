@@ -216,6 +216,9 @@ ai-stock-analyst/
 - `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/spec.md`
 - `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/plan.md`
 - `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/tasks.md`
+- `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/spec.md`
+- `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/plan.md`
+- `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/tasks.md`
 
 ### 推荐执行顺序
 
@@ -326,11 +329,18 @@ on:
 
 ### 1. 热门股票发现 (--discover)
 
-从新闻和社交媒体中自动发现潜在热门股票：
+从“全市场候选池”中自动发现潜在热门股票（Top1 + 20备选）：
 
 ```bash
 # 本地运行
 stock-analyze --discover
+
+# 可调参数（全市场扫描）
+stock-analyze --discover \
+  --discover-universe-size 1500 \
+  --discover-prefilter-size 120 \
+  --discover-final-size 21 \
+  --discover-max-news 180
 ```
 
 **GitHub Actions 使用：**
@@ -345,11 +355,11 @@ stock-analyze --discover
 ```
 
 **功能说明：**
-- 扫描所有RSS新闻源
-- 提取股票代码和情绪关键词
-- 计算看涨评分 + 综合评分（情绪+趋势+来源多样性）
-- 推荐Top 5热门股票（中文优先）
-- 每只候选股输出：公司做什么、行业/板块、新闻事件概述、为什么利好/利空
+- 扫描美股候选池（NASDAQ Trader 符号目录）+ RSS 新闻源
+- 初筛：价格/流动性/动量（预筛得分）
+- 评分：技术面 + 财报稳定性 + 新闻解读 + 预筛分
+- 输出：Top1 推荐 + 20只备选（含扫描统计）
+- 每只候选股输出：公司做什么、行业/板块、新闻事件概述、为什么利好/利空、入场/目标参考
 
 ---
 
@@ -479,6 +489,20 @@ GitHub Actions 说明：
 
 当前仓库已支持 `cpapi` 模式，适配上述路径。
 
+#### 参考项目 thetagang 的可借鉴点
+
+参考项目：<https://github.com/brndnmtthws/thetagang>
+
+从实现上看，thetagang 主要采用：
+- `ib_async` 作为核心 IB SDK；
+- `IBC + Watchdog` 管理 TWS/Gateway 生命周期与重连；
+- `--dry-run` 和订单状态跟踪，降低实盘误操作风险。
+
+对我们的启发：
+1. 交易自动化阶段建议优先走 `socket`（TWS/Gateway），因为下单稳定性和事件回调更成熟。
+2. 仅持仓读取/账户观测阶段，`cpapi` 依然是 web/mobile-only 用户更现实路径。
+3. 上线交易前应先实现 `dry-run`、订单审计、失败重试、风控闸门联动（可作为下一期 SDD 任务）。
+
 官方参考：
 - IBKR API 文档入口：<https://ibkrcampus.com/campus/ibkr-api-page/>
 - IBKR 中国站 API 介绍（你提供的入口）：<https://www.interactivebrokers.com/cn/trading/ib-api.php#api-software>
@@ -533,6 +557,7 @@ AI Stock Analyzer
 
 钉钉/飞书/企业微信均使用 markdown 结构化消息。钉钉端已针对移动端做了标题去重、长消息分段和单层列表优化。
 钉钉机器人文档（markdown 消息类型）可参考：<https://open.dingtalk.com/document/robots/custom-robot-access>
+结合钉钉移动端渲染行为，项目对粗体/行内代码做了稳定性降级（避免出现残留 `*` 或错位）。
 
 通知包含：
 - 📊 分析结果摘要

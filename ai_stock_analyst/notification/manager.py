@@ -95,7 +95,7 @@ class NotificationManager:
         for notifier in self.enabled_notifiers:
             try:
                 message = notifier.format_stock_message(analysis_result)
-                title = f"📊 {analysis_result.get('symbol', 'Stock')} Analysis Result"
+                title = f"📊 {analysis_result.get('symbol', 'Stock')} 决策卡"
                 success = notifier.send(title, message)
                 results[notifier.name] = success
             except Exception as e:
