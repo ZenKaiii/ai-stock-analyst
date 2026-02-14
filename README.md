@@ -17,7 +17,7 @@
 | 模块 | 功能 | 说明 |
 |------|------|------|
 | 🤖 AI分析 | 决策仪表盘 | 核心结论 + 精确买卖点位 + 多维度评分 |
-| 🧩 多Agent协作 | 研究员分工 | Technical + Fundamental + Bull + Bear + RiskManager 协同决策 |
+| 🧩 多Agent协作 | 研究员分工 | Macro + Technical + Liquidity + Fundamental + Bull/Bear + Risk 协同决策 |
 | 🛡️ 风控 | Risk Gate | 高波动/事件窗口/数据质量异常时自动降级 BUY 信号 |
 | 🌍 地缘政治 | 宏观事件风控 | 纳入地缘政治与Trump政策动态对美股冲击评估 |
 | 📡 新闻 | RSS+结构化事件 | SeekingAlpha/WSJ/CNBC + Fed/SEC/CFTC/IMF + Geopolitical监控 |
@@ -25,6 +25,20 @@
 | 🧠 LLM | 双模型支持 | 阿里云百炼 DeepSeek(主要) + Google Gemini(备用) |
 | 📱 推送 | 多渠道通知 | Telegram、钉钉、飞书、企业微信 |
 | ⚡ 自动化 | GitHub Actions | 定时执行，零成本运行 |
+
+### 与“8-Agent推送系统”思路对照
+
+本项目已落地并可持续演进的映射如下：
+- `Macro Regime` → `MacroRegimeAgent`（QQQ/VIX + 宏观政策关键词）
+- `Liquidity & Market Quality` → `LiquidityQualityAgent`（成交额/活跃度/波动/跳空）
+- `Fundamental Stability` → `FundamentalAnalyst`（财报稳定性评分、增长与杠杆）
+- `News Catalyst` → `NewsAnalyst` + 结构化事件源（含地缘政治/财报监控）
+- `Risk & Portfolio Control` → `RiskManager` + `PortfolioManager`（风险闸门 + 仓位）
+
+尚未完全覆盖但已预留扩展位：
+- `Sector Rotation`（板块轮动）
+- `Flow & Derivatives`（期权/资金流）
+- `ICT Structure`（更细粒度市场结构）
 
 ### 技术栈
 
@@ -196,6 +210,12 @@ ai-stock-analyst/
 - `specs/001-risk-aware-multi-agent-upgrade/spec.md`
 - `specs/001-risk-aware-multi-agent-upgrade/plan.md`
 - `specs/001-risk-aware-multi-agent-upgrade/tasks.md`
+- `specs/002-beginner-friendly-dashboard-and-ibkr-onboarding/spec.md`
+- `specs/002-beginner-friendly-dashboard-and-ibkr-onboarding/plan.md`
+- `specs/002-beginner-friendly-dashboard-and-ibkr-onboarding/tasks.md`
+- `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/spec.md`
+- `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/plan.md`
+- `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/tasks.md`
 
 ### 推荐执行顺序
 
@@ -206,10 +226,11 @@ ai-stock-analyst/
 
 ### 对应当前升级方向
 
-- 多角色 Agent（Fundamental/Bull/Bear/Risk）
+- 多角色 Agent（Macro/Liquidity/Fundamental/Bull/Bear/Risk）
 - 风控闸门（Risk Gate）
 - 技术指标扩展（RSI/MACD/ATR）
 - 结构化事件源 + 回测报告
+- IBKR 双通道接入（Socket + CPAPI）
 
 ---
 
@@ -373,40 +394,60 @@ Actions → Daily Stock Analysis → Run workflow → 选择 mode 为 "portfolio
 
 ### 3. IBKR持仓同步（美国区可用）
 
-支持从 IBKR TWS/Gateway 直接拉取持仓并写入本地持仓表（可再接 `--portfolio` 自动分析）。
+支持两条官方路径：
+- `socket`：TWS/Gateway Socket API（`ib_async` / `ib_insync`）
+- `cpapi`：Client Portal API（通过 Client Portal Gateway + 浏览器会话）
+
+同步后都会写入本地持仓表（可再接 `--portfolio` 自动分析）。
 
 ```bash
-# 先安装任一SDK（推荐 ib_async）
+# socket 模式需安装任一SDK（推荐 ib_async）
 pip install ib_async
 # 或
 pip install ib_insync
 
-# 仅同步
+# 仅同步（默认 auto 模式，会先尝试 socket 再尝试 cpapi）
+# export IBKR_API_MODE=auto
 stock-analyze --sync-ibkr-holdings
+
+# 连接自检（推荐先跑）
+stock-analyze --ibkr-check
+
+# 仅同步
+# export IBKR_API_MODE=cpapi
+# export IBKR_CPAPI_BASE_URL=https://localhost:5000/v1/api
+# export IBKR_CPAPI_VERIFY_SSL=false
+# stock-analyze --sync-ibkr-holdings
 
 # 同步后立即做持仓分析
 stock-analyze --sync-ibkr-holdings --portfolio
 ```
 
 需要在 `.env` 配置：
+- `IBKR_API_MODE`（`auto/socket/cpapi`，默认 `auto`）
 - `IBKR_HOST`（默认 `127.0.0.1`）
 - `IBKR_PORT`（默认 `7497`，实盘常见 `7496`）
 - `IBKR_CLIENT_ID`（默认 `21`）
 - `IBKR_ACCOUNT`（可选）
+- `IBKR_CPAPI_BASE_URL`（默认 `https://localhost:5000/v1/api`）
+- `IBKR_CPAPI_VERIFY_SSL`（默认 `false`）
+- `IBKR_CPAPI_TIMEOUT`（默认 `12`）
 
 参数含义：
+- `IBKR_API_MODE`: 连接模式；`socket` 走 TWS/Gateway，`cpapi` 走 Client Portal API。
 - `IBKR_HOST`: IBKR TWS/Gateway 所在主机地址（本机一般是 `127.0.0.1`）。
 - `IBKR_PORT`: API 端口，`7497` 通常是 Paper，`7496` 通常是 Live。
 - `IBKR_CLIENT_ID`: API 客户端连接编号，用于区分不同脚本连接（避免冲突）。
 - `IBKR_ACCOUNT`: 可选账户过滤（多账户场景下指定一个账户）。
+- `IBKR_CPAPI_BASE_URL`: Client Portal Gateway API 地址（默认本机 `5000`）。
 
 GitHub Actions 说明：
 - workflow 已新增 `mode=ibkr_portfolio`，会执行“同步持仓 + 直接分析”。
-- 需要在仓库 Secrets 配置 `IBKR_HOST/IBKR_PORT/IBKR_CLIENT_ID/IBKR_ACCOUNT`。
+- 需要在仓库 Secrets 配置 `IBKR_API_MODE` 及对应参数（socket 或 cpapi）。
 - workflow 现已启用严格模式：若 IBKR 同步失败会直接失败，便于排查配置问题。
 - 若使用 GitHub 官方托管 runner，`127.0.0.1` 指向的是 runner 自己，不是你本地电脑。要成功连接 IBKR，通常需要：
-  1. 自建 `self-hosted runner`（与你 TWS/Gateway 在同一网络），或
-  2. 可公网访问且安全加固的 IBKR Gateway 服务。
+  1. 自建 `self-hosted runner`（与你 TWS/Gateway 或 CP Gateway 同机/同网段），或
+  2. 可公网访问且安全加固的网关服务（不推荐给新手）。
 
 如何确认参数（TWS/Gateway）：
 1. 打开 TWS / IB Gateway。
@@ -419,19 +460,24 @@ GitHub Actions 说明：
 
 #### IBKR API 新手说明（按官方文档）
 
-如果你的目标只是“读取持仓”，本项目优先使用 **TWS/Gateway Socket API**（`ib_async` / `ib_insync`）：
+如果你的目标只是“读取持仓”，两条路径都可用：
 
+1. **Socket API（TWS/Gateway）**
 - 不需要单独申请 API Token。
-- 鉴权依赖你已经登录的 TWS 或 IB Gateway 会话。
-- 只要 `host + port + clientId` 正确，并且 API 开关打开，即可读取 `positions`。
+- 鉴权依赖你已经登录的 TWS/IB Gateway 会话。
+- 只要 `host + port + clientId` 正确，且 API 开关打开，即可读取持仓。
 
-另一条官方路线是 **Client Portal Web API (CPAPI)**：
+2. **Client Portal Web API (CPAPI)**
+- 需要运行 Client Portal Gateway（本地常见 `https://localhost:5000`）。
+- 需要浏览器登录并保持认证会话。
+- 官方文档强调会话/认证约束，不是“只填 API Key 永久可用”模式。
+- 常见读取持仓端点：`/portfolio/accounts`、`/portfolio/{accountId}/positions`。
 
-- 需要先启动本地或服务器侧的 Client Portal Gateway。
-- 通过浏览器登录后建立会话，再访问 REST 接口（例如账户和持仓端点）。
-- 官方文档明确会话需要认证状态，且没有“纯 API Key 一次配置永久使用”的简单模式。
+**你这种“只有网页端和 mobile、没有 TWS/Gateway”的情况，最适合路径：**
+- 短期（最现实）：部署 **Client Portal Gateway + self-hosted runner**，用 `IBKR_API_MODE=cpapi` 做持仓拉取与分析。
+- 中期（自动化交易）：在 CPAPI 会话管理稳定后，再接入下单端点做“交易执行层”。
 
-结论：对当前仓库“持仓读取+分析”场景，Socket API 更直接、改造成本更低。
+当前仓库已支持 `cpapi` 模式，适配上述路径。
 
 官方参考：
 - IBKR API 文档入口：<https://ibkrcampus.com/campus/ibkr-api-page/>
@@ -491,8 +537,12 @@ AI Stock Analyzer
 通知包含：
 - 📊 分析结果摘要
 - 🎯 买卖信号
+- 📈 综合评分（0-100）
 - 💰 建议价格（入场/止损/目标）
-- 📈 技术面分析要点
+- 📈 技术面分析要点（手机端卡片化）
+- 🌍 宏观环境（QQQ/VIX/政策事件）
+- 💧 流动性质量（成交额/活跃度/波动）
+- 🧾 财报与基本面稳定性
 - 📰 新闻“概要+解读”
 - 📚 指标小白解释（RSI/MACD/ATR）
 - ✅ 分场景操作建议（空仓/持仓）

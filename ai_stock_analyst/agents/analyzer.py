@@ -11,6 +11,8 @@ from ai_stock_analyst.agents.social import SocialMediaAnalyst
 from ai_stock_analyst.agents.portfolio import PortfolioManager
 from ai_stock_analyst.agents.anomaly import AnomalyAgent
 from ai_stock_analyst.agents.fundamental import FundamentalAnalyst
+from ai_stock_analyst.agents.macro_regime import MacroRegimeAgent
+from ai_stock_analyst.agents.liquidity_quality import LiquidityQualityAgent
 from ai_stock_analyst.agents.bull_researcher import BullResearcher
 from ai_stock_analyst.agents.bear_researcher import BearResearcher
 from ai_stock_analyst.agents.risk_manager import RiskManager
@@ -21,7 +23,9 @@ class StockAnalyzer:
     
     def __init__(self):
         self.agents = {
+            "macro": MacroRegimeAgent(),
             "technical": TechnicalAnalyst(),
+            "liquidity": LiquidityQualityAgent(),
             "news": NewsAnalyst(),
             "social": SocialMediaAnalyst(),
             "anomaly": AnomalyAgent(),
@@ -30,7 +34,18 @@ class StockAnalyzer:
             "bear": BearResearcher(),
             "risk": RiskManager(),
         }
-        self.agent_pipeline = ["technical", "anomaly", "fundamental", "news", "bull", "bear", "social", "risk"]
+        self.agent_pipeline = [
+            "macro",
+            "technical",
+            "liquidity",
+            "anomaly",
+            "fundamental",
+            "news",
+            "bull",
+            "bear",
+            "social",
+            "risk",
+        ]
         self.portfolio_manager = PortfolioManager()
 
     def register_agent(self, key: str, agent, append_pipeline: bool = True) -> None:
@@ -57,7 +72,7 @@ class StockAnalyzer:
         
         risk_result = None
         for key in self.agent_pipeline:
-            if key in {"technical", "anomaly", "fundamental"} and "price_data" not in data:
+            if key in {"macro", "technical", "liquidity", "anomaly", "fundamental"} and "price_data" not in data:
                 continue
             if key in {"news", "bull", "bear"} and not data.get("news"):
                 continue
@@ -94,7 +109,8 @@ class StockAnalyzer:
                 "entry_price": decision.indicators.get("entry_price"),
                 "stop_loss": decision.indicators.get("stop_loss"),
                 "target_price": decision.indicators.get("target_price"),
-                "position_size": decision.indicators.get("position_size")
+                "position_size": decision.indicators.get("position_size"),
+                "score_100": decision.indicators.get("score_100", 50),
             },
             "analyses": [
                 {

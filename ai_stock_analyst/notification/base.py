@@ -69,10 +69,14 @@ class BaseNotifier(ABC):
         one_sentence = self._extract_one_sentence(decision.get('rationale', ''))
         risks = self._extract_risks(analyses)
         catalysts = self._extract_catalysts(analyses)
+        macro = self._extract_agent_section(analyses, "MacroRegimeAgent", "🌍 宏观环境", 3)
+        liquidity = self._extract_agent_section(analyses, "LiquidityQualityAgent", "💧 流动性质量", 3)
+        fundamental = self._extract_agent_section(analyses, "FundamentalAnalyst", "🧾 财报与基本面", 3)
         anomaly_alerts = self._format_anomaly_alerts(analyses)
         news_summary = self._format_news_summary(news)
         tech_analysis = self._format_technical_analysis(analyses)
         checklist = self._generate_checklist(analyses, decision)
+        score_100 = decision.get("score_100", 50)
         
         # Build Markdown message with better structure
         message = f"""# 🎯 {symbol} 决策仪表盘
@@ -81,6 +85,7 @@ class BaseNotifier(ABC):
 
 ### {signal_emoji} **{signal}** | 置信度: **{confidence}%**
 > {one_sentence}
+> 综合评分: **{score_100}/100**
 
 ---
 
@@ -101,6 +106,18 @@ class BaseNotifier(ABC):
 ---
 
 {tech_analysis}
+
+---
+
+{macro}
+
+---
+
+{liquidity}
+
+---
+
+{fundamental}
 
 ---
 
@@ -125,6 +142,21 @@ class BaseNotifier(ABC):
 """
         message = message.replace("\n\n\n", "\n").replace("---\n\n---", "---")
         return message
+
+    def _extract_agent_section(self, analyses: List, agent_name: str, title: str, limit: int = 3) -> str:
+        for a in analyses:
+            if a.get("agent") != agent_name:
+                continue
+            lines = []
+            for raw in str(a.get("reasoning", "")).splitlines():
+                cleaned = self._clean_bullet_line(raw)
+                if cleaned and len(cleaned) > 8:
+                    lines.append(f"*   {cleaned[:120]}")
+                if len(lines) >= limit:
+                    break
+            if lines:
+                return title + "\n" + "\n".join(lines)
+        return ""
     
     def _extract_one_sentence(self, rationale: str) -> str:
         if not rationale:

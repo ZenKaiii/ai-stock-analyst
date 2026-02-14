@@ -48,6 +48,7 @@ class PortfolioManager(BaseAgent):
         
         # 加权置信度
         avg_confidence = sum(a.confidence for a in directional) / len(directional)
+        score_100 = self._build_direction_score(directional)
         
         # 确定最终信号
         if buy_votes > sell_votes and buy_votes > hold_votes:
@@ -83,6 +84,7 @@ class PortfolioManager(BaseAgent):
 - 卖出投票: {sell_votes}
 - 持有投票: {hold_votes}
 - 平均置信度: {avg_confidence:.1%}
+- 综合评分: {score_100:.1f}/100
 - 风险闸门: {risk_note}
 
 最终信号: {signal}
@@ -104,6 +106,7 @@ class PortfolioManager(BaseAgent):
                 "position_size": position_size,
                 "risk_override": bool(risk_assessment.get("triggered", False)),
                 "risk_level": risk_assessment.get("risk_level", "LOW"),
+                "score_100": round(score_100, 1),
             },
             risks=["多Agent共识可能仍不准确", "建议结合个人判断"]
         )
@@ -122,3 +125,35 @@ class PortfolioManager(BaseAgent):
         if signal == "BUY":
             return "HOLD", max(confidence * 0.75, 0.35), note
         return signal, max(confidence * 0.9, 0.3), note
+
+    def _build_direction_score(self, analyses: List[AnalysisResult]) -> float:
+        """将多Agent方向与置信度映射为 0-100 分，便于排序展示。"""
+        if not analyses:
+            return 50.0
+
+        weights = {
+            "MacroRegimeAgent": 1.1,
+            "TechnicalAnalyst": 1.0,
+            "LiquidityQualityAgent": 1.0,
+            "AnomalyAgent": 0.9,
+            "FundamentalAnalyst": 1.2,
+            "NewsAnalyst": 1.0,
+            "BullResearcher": 0.9,
+            "BearResearcher": 0.9,
+            "SocialMediaAnalyst": 0.8,
+        }
+        signal_num = {"BUY": 1.0, "HOLD": 0.0, "SELL": -1.0}
+
+        weighted_sum = 0.0
+        max_abs = 0.0
+        for item in analyses:
+            w = float(weights.get(item.agent_name, 1.0))
+            conf = max(0.2, min(float(item.confidence), 1.0))
+            s = signal_num.get(item.signal, 0.0)
+            weighted_sum += w * conf * s
+            max_abs += w * conf
+
+        if max_abs <= 0:
+            return 50.0
+        norm = max(-1.0, min(1.0, weighted_sum / max_abs))
+        return 50 + norm * 50

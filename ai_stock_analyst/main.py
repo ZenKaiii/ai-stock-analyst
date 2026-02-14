@@ -4,6 +4,7 @@
 import argparse
 import json
 import logging
+import os
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -35,6 +36,7 @@ def main():
     parser.add_argument("--add-holding", type=str, help="Add holding: SYMBOL,SHARES,COST")
     parser.add_argument("--list-holdings", action="store_true", help="List all holdings")
     parser.add_argument("--sync-ibkr-holdings", action="store_true", help="Sync holdings from IBKR TWS/Gateway")
+    parser.add_argument("--ibkr-check", action="store_true", help="Check IBKR connectivity/auth and print summary")
     parser.add_argument("--strict-ibkr", action="store_true", help="Exit non-zero if IBKR sync fails")
     
     args = parser.parse_args()
@@ -58,6 +60,23 @@ def main():
         print("-" * 70)
         for h in holdings:
             print(f"{h.get('symbol', ''):<8} {h.get('shares', 0):<10.2f} ${h.get('avg_cost', 0):<11.2f} ${h.get('current_price', 0):<11.2f} ${h.get('market_value', 0):<13.2f} ${h.get('unrealized_pnl', 0):<11.2f}")
+        return
+
+    if args.ibkr_check:
+        mode = os.getenv("IBKR_API_MODE", "auto")
+        print(f"IBKR mode: {mode}")
+        if mode.lower() in {"cpapi", "auto"}:
+            print(f"CPAPI base: {os.getenv('IBKR_CPAPI_BASE_URL', 'https://localhost:5000/v1/api')}")
+        if mode.lower() in {"socket", "auto"}:
+            print(f"Socket endpoint: {os.getenv('IBKR_HOST', '127.0.0.1')}:{os.getenv('IBKR_PORT', '7497')}")
+        try:
+            ib_holdings = fetch_ibkr_positions()
+            print(f"IBKR check success. Holdings fetched: {len(ib_holdings)}")
+            for h in ib_holdings[:5]:
+                print(f"- {h['symbol']}: {h['shares']} @ {h['avg_cost']}")
+        except Exception as e:
+            print(f"IBKR check failed: {e}")
+            raise SystemExit(2)
         return
 
     if args.sync_ibkr_holdings:

@@ -17,13 +17,26 @@
 | Module | Feature | Description |
 |--------|---------|-------------|
 | 🤖 AI Analysis | Decision Dashboard | Core conclusion + precise entry/exit points + multi-dimensional scoring |
-| 🧩 Multi-Agent | Role-based Reasoning | Technical + Fundamental + Bull + Bear + Risk Manager orchestration |
+| 🧩 Multi-Agent | Role-based Reasoning | Macro + Technical + Liquidity + Fundamental + Bull/Bear + Risk orchestration |
 | 🛡️ Risk Gate | Hard Risk Override | Downgrades BUY under volatility/event/geopolitical risk |
 | 📡 News | RSS Aggregation | Real-time news from Seeking Alpha, MarketWatch, CNBC, etc. |
 | 🐦 Social | Sentiment Monitor | Twitter/X and Reddit discussion sentiment analysis |
 | 🧠 LLM | Dual Model Support | Alibaba Bailian (primary) + Google Gemini (fallback) |
 | 📱 Push | Multi-channel | Telegram, DingTalk, Feishu, WeChat Work |
 | ⚡ Automation | GitHub Actions | Scheduled execution, zero-cost operation |
+
+### Mapping to "8-Agent Push System" ideas
+
+- `Macro Regime` -> `MacroRegimeAgent`
+- `Liquidity & Market Quality` -> `LiquidityQualityAgent`
+- `Fundamental Stability` -> upgraded `FundamentalAnalyst` (earnings-stability scoring)
+- `News Catalyst` -> `NewsAnalyst` + structured news providers
+- `Risk & Portfolio Control` -> `RiskManager` + `PortfolioManager`
+
+Planned extensions:
+- `Sector Rotation`
+- `Flow & Derivatives`
+- `ICT Structure`
 
 ### Tech Stack
 
@@ -178,6 +191,12 @@ The repository includes a spec-driven execution scaffold:
 - `specs/001-risk-aware-multi-agent-upgrade/spec.md`
 - `specs/001-risk-aware-multi-agent-upgrade/plan.md`
 - `specs/001-risk-aware-multi-agent-upgrade/tasks.md`
+- `specs/002-beginner-friendly-dashboard-and-ibkr-onboarding/spec.md`
+- `specs/002-beginner-friendly-dashboard-and-ibkr-onboarding/plan.md`
+- `specs/002-beginner-friendly-dashboard-and-ibkr-onboarding/tasks.md`
+- `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/spec.md`
+- `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/plan.md`
+- `specs/003-mobile-template-ibkr-cpapi-and-agent-upgrade/tasks.md`
 
 Recommended order:
 1. Read constitution (hard constraints)
@@ -197,39 +216,49 @@ Outputs:
 
 ## 🧾 IBKR Portfolio Sync (Optional)
 
-You can sync holdings directly from IBKR TWS/Gateway:
+The project supports two official paths:
+- `socket`: TWS/Gateway Socket API (`ib_async` / `ib_insync`)
+- `cpapi`: Client Portal API via Client Portal Gateway
 
 ```bash
 pip install ib_async
 # or: pip install ib_insync
 
+# auto mode (tries socket then cpapi)
 stock-analyze --sync-ibkr-holdings
+stock-analyze --ibkr-check
 stock-analyze --sync-ibkr-holdings --portfolio
 ```
 
 Environment variables:
+- `IBKR_API_MODE` (`auto/socket/cpapi`, default `auto`)
 - `IBKR_HOST` (default `127.0.0.1`)
 - `IBKR_PORT` (default `7497`)
 - `IBKR_CLIENT_ID` (default `21`)
 - `IBKR_ACCOUNT` (optional account filter)
+- `IBKR_CPAPI_BASE_URL` (default `https://localhost:5000/v1/api`)
+- `IBKR_CPAPI_VERIFY_SSL` (default `false`)
+- `IBKR_CPAPI_TIMEOUT` (default `12`)
 
 Meaning:
+- `IBKR_API_MODE`: routing mode between socket and cpapi
 - `IBKR_HOST`: host of TWS/Gateway API service
 - `IBKR_PORT`: API port (`7497` paper / `7496` live in common setups)
 - `IBKR_CLIENT_ID`: API client identifier (avoid collisions across scripts)
 - `IBKR_ACCOUNT`: optional account filter in multi-account setup
+- `IBKR_CPAPI_BASE_URL`: CP Gateway API base URL
 
 GitHub Actions note:
 - Workflow supports `mode=ibkr_portfolio` (sync + analyze).
 - Workflow uses strict IBKR sync (`--strict-ibkr`): job fails fast when sync fails.
 - On GitHub-hosted runners, `127.0.0.1` is the runner itself, not your local machine.
-- For reliable IBKR sync in CI, use a self-hosted runner near your TWS/Gateway or a securely exposed gateway endpoint.
+- For reliable IBKR sync in CI, use a self-hosted runner near your TWS/Gateway or CP Gateway.
 
 IBKR API onboarding for beginners:
-- For holdings-only use cases, this project uses **TWS/Gateway Socket API** via `ib_async`/`ib_insync`.
-- No separate API token is required for Socket API; authentication depends on an active logged-in TWS/Gateway session.
-- **Client Portal API (CPAPI)** is another official path, but it requires running CP Gateway and maintaining an authenticated web session.
-- For this repository, Socket API is the simplest and most reliable integration path.
+- Socket API does not require a standalone API token; it uses an active logged-in TWS/Gateway session.
+- CPAPI also does not use a simple permanent API-key flow for retail; it requires CP Gateway and authenticated session handling.
+- For web/mobile-only users (no TWS), CPAPI + self-hosted runner is the practical path.
+- The codebase now supports `IBKR_API_MODE=cpapi` for holdings sync.
 
 How to confirm values in TWS/Gateway:
 1. Open TWS / IB Gateway.
@@ -245,6 +274,7 @@ References:
 - IBKR CN API overview (official page): <https://www.interactivebrokers.com/cn/trading/ib-api.php#api-software>
 - TWS API initial setup (default ports): <https://ibkrcampus.com/campus/ibkr-api-page/twsapi-doc/#initial-setup>
 - Client Portal API auth/session docs: <https://ibkrcampus.com/campus/ibkr-api-page/cpapi-v1/>
+- CPAPI quickstart: <https://ibkrcampus.com/campus/ibkr-api-page/webapi-doc/#start-here>
 - Python SDK (`ib_async`): <https://github.com/ib-api-reloaded/ib_async>
 
 ### Environment Variables (.env file)
@@ -343,8 +373,12 @@ AI Stock Analyzer
 Supports Markdown format, including:
 - 📊 Analysis result summary
 - 🎯 Buy/Sell signals
+- 📈 Composite score (0-100)
 - 💰 Suggested prices (entry/stop/target)
-- 📈 Technical analysis highlights
+- 📈 Technical highlights (mobile-card layout)
+- 🌍 Macro regime context
+- 💧 Liquidity and execution quality
+- 🧾 Earnings/fundamental stability
 - 📰 News summary + interpretation
 - 📚 Beginner indicator explanation (RSI/MACD/ATR)
 - ✅ Action suggestions by scenario (no position / holding)

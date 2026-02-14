@@ -2,6 +2,8 @@ from .base import BaseAgent, AnalysisResult
 from .analyzer import StockAnalyzer, analyze_stock
 from .recommendation import RecommendationAgent, scan_for_opportunities
 from .fundamental import FundamentalAnalyst
+from .macro_regime import MacroRegimeAgent
+from .liquidity_quality import LiquidityQualityAgent
 from .bull_researcher import BullResearcher
 from .bear_researcher import BearResearcher
 from .risk_manager import RiskManager
@@ -20,6 +22,8 @@ __all__ = [
     "RecommendationAgent",
     "scan_for_opportunities",
     "FundamentalAnalyst",
+    "MacroRegimeAgent",
+    "LiquidityQualityAgent",
     "BullResearcher",
     "BearResearcher",
     "RiskManager",

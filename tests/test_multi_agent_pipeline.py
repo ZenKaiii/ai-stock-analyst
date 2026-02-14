@@ -4,6 +4,8 @@ from ai_stock_analyst.agents.analyzer import StockAnalyzer
 def test_pipeline_contains_new_roles_and_risk():
     analyzer = StockAnalyzer()
     keys = analyzer.list_agents()
+    assert "macro" in keys
+    assert "liquidity" in keys
     assert "fundamental" in keys
     assert "bull" in keys
     assert "bear" in keys
@@ -37,4 +39,5 @@ def test_analysis_has_risk_payload_and_decision_fields():
     result = analyzer.analyze("AAPL", data)
     assert "decision" in result
     assert "position_size" in result["decision"]
+    assert "score_100" in result["decision"]
     assert any(a["agent"] == "RiskManager" for a in result["analyses"])

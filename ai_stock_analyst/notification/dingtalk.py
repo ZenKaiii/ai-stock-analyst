@@ -146,6 +146,7 @@ class DingTalkNotifier(BaseNotifier):
 
         signal = decision.get("signal", "HOLD")
         confidence = decision.get("confidence", 0)
+        score_100 = float(decision.get("score_100", 50) or 50)
         signal_icon = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(signal, "⚪")
 
         news_lines = []
@@ -174,33 +175,47 @@ class DingTalkNotifier(BaseNotifier):
         risk_block = "\n".join(risk_lines[:4]) if risk_lines else "- 暂无明显风险闸门触发"
 
         technical_lines = self._extract_agent_lines(analyses, "TechnicalAnalyst", limit=4)
+        macro_lines = self._extract_agent_lines(analyses, "MacroRegimeAgent", limit=3)
+        liquidity_lines = self._extract_agent_lines(analyses, "LiquidityQualityAgent", limit=3)
+        fundamental_lines = self._extract_agent_lines(analyses, "FundamentalAnalyst", limit=4)
         tech_block = "\n".join(f"- {line}" for line in technical_lines) if technical_lines else "- 技术面信息不足，建议观察量价变化。"
+        macro_block = "\n".join(f"- {line}" for line in macro_lines) if macro_lines else "- 宏观信息不足，维持中性。"
+        liquidity_block = "\n".join(f"- {line}" for line in liquidity_lines) if liquidity_lines else "- 流动性数据不足，暂不下结论。"
+        fundamental_block = "\n".join(f"- {line}" for line in fundamental_lines) if fundamental_lines else "- 财报稳定性信息不足。"
         rationale = self._clean_bullet_line(str(decision.get("rationale", "")))[:120] or "建议结合仓位与风险偏好执行。"
         action_for_new = "可小仓位分批试错，严格止损。" if signal == "BUY" else "优先观望，等待趋势确认。" if signal == "HOLD" else "不建议新开仓，先控制回撤。"
         action_for_holding = "已有仓位可继续持有，跌破止损位及时减仓。" if signal != "SELL" else "已有仓位建议分批减仓或止损。"
+        score_desc = "偏强" if score_100 >= 65 else "中性" if score_100 >= 45 else "偏弱"
 
         return (
-            f"## 🎯 {symbol} 决策仪表盘\n\n"
-            f"### {signal_icon} 结论\n"
+            f"## 📱 {symbol} 决策卡（移动版）\n\n"
+            f"> {rationale}\n\n"
+            f"### ① {signal_icon} 结论\n"
             f"- **交易信号**: `{signal}`\n"
+            f"- **综合评分**: `{score_100:.1f}/100`（{score_desc}）\n"
             f"- **置信度**: `{confidence}%`\n"
             f"- **建议仓位**: `{decision.get('position_size', '5-10%')}`\n\n"
-            f"> {rationale}\n\n"
-            f"### 💰 交易计划\n"
+            f"### ② 💰 交易计划\n"
             f"- **入场价**: `${decision.get('entry_price', 'N/A')}`\n"
             f"- **止损价**: `${decision.get('stop_loss', 'N/A')}`\n"
             f"- **目标价**: `${decision.get('target_price', 'N/A')}`\n\n"
-            f"### 📊 技术面要点\n"
+            f"### ③ 📊 技术面\n"
             f"{tech_block}\n\n"
-            f"### 📰 关键新闻依据\n"
+            f"### ④ 🌍 宏观环境\n"
+            f"{macro_block}\n\n"
+            f"### ⑤ 💧 流动性/成交质量\n"
+            f"{liquidity_block}\n\n"
+            f"### ⑥ 🧾 财报与基本面\n"
+            f"{fundamental_block}\n\n"
+            f"### ⑦ 📰 关键新闻依据\n"
             f"{news_block}\n\n"
-            f"### 🚨 风险提示\n"
+            f"### ⑧ 🚨 风险提示\n"
             f"{risk_block}\n\n"
-            f"### 📚 小白指标速读\n"
+            f"### ⑨ 📚 小白指标速读\n"
             f"- **RSI**: >70 常见为短期偏热，<30 常见为短期偏弱。\n"
             f"- **MACD**: 柱线转正通常代表动能改善，转负代表动能走弱。\n"
             f"- **ATR%**: 越高代表波动越大，仓位应越小。\n\n"
-            f"### ✅ 行动建议（小白版）\n"
+            f"### ⑩ ✅ 行动建议\n"
             f"- **空仓用户**: {action_for_new}\n"
             f"- **持仓用户**: {action_for_holding}\n\n"
             f"> AI Stock Analyst"

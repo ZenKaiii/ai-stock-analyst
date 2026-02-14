@@ -128,8 +128,14 @@ jobs:
           IBKR_PORT: ${{ secrets.IBKR_PORT }}
           IBKR_CLIENT_ID: ${{ secrets.IBKR_CLIENT_ID }}
           IBKR_ACCOUNT: ${{ secrets.IBKR_ACCOUNT }}
+          IBKR_API_MODE: ${{ secrets.IBKR_API_MODE || vars.IBKR_API_MODE || 'auto' }}
+          IBKR_CPAPI_BASE_URL: ${{ secrets.IBKR_CPAPI_BASE_URL || vars.IBKR_CPAPI_BASE_URL || 'https://localhost:5000/v1/api' }}
+          IBKR_CPAPI_VERIFY_SSL: ${{ secrets.IBKR_CPAPI_VERIFY_SSL || vars.IBKR_CPAPI_VERIFY_SSL || 'false' }}
+          IBKR_CPAPI_TIMEOUT: ${{ secrets.IBKR_CPAPI_TIMEOUT || vars.IBKR_CPAPI_TIMEOUT || '12' }}
         run: |
-          pip install ib_async
+          if [ "${IBKR_API_MODE}" != "cpapi" ]; then
+            pip install ib_async
+          fi
           stock-analyze --sync-ibkr-holdings --portfolio --strict-ibkr
 
       - name: Run backtest smoke

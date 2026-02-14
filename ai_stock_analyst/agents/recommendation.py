@@ -211,7 +211,7 @@ class RecommendationAgent(BaseAgent):
     def _build_recommendation_text(self, top_picks: List) -> str:
         lines = ["以下为候选股票的简要分析、新闻依据和推荐原因：", ""]
         
-        for symbol, data in top_picks:
+        for idx, (symbol, data) in enumerate(top_picks, start=1):
             emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(data["signal"], "⚪")
             evidence_lines = data.get("evidence_news", [])[:2]
             evidence_md = "\n".join(f"- {item}" for item in evidence_lines) if evidence_lines else "- 无"
@@ -220,14 +220,14 @@ class RecommendationAgent(BaseAgent):
             industry = self._to_cn_label(data.get("industry") or "未知行业")
             business = self._describe_business_for_beginner(company, data.get("business", ""), sector, industry)
             lines.append(
-                f"### {emoji} {symbol} ({company})\n"
+                f"### {idx}. {emoji} {symbol} ({company})\n"
                 f"- **结论**: `{data['signal']}`\n"
                 f"- **公司/行业**: {sector} / {industry}\n"
                 f"- **公司做什么**: {business}\n"
                 f"- **简要分析**: {data.get('brief_analysis', '暂无')}\n"
                 f"- **推荐原因**: {data.get('recommend_reason', '暂无')}\n"
                 f"- **看涨评分**: `{data['bullish_score']:.2f}` | **综合评分**: `{data.get('composite_score', data['bullish_score']):.2f}`\n"
-                f"- **新闻依据**:\n{evidence_md}\n"
+                f"- **新闻依据**:\n{evidence_md}\n\n"
             )
         
         return "\n".join(lines)

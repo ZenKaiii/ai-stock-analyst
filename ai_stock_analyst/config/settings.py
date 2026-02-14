@@ -44,10 +44,14 @@ class Settings(BaseSettings):
     WEB_DEBUG: bool = False
 
     # IBKR API (TWS/Gateway)
+    IBKR_API_MODE: str = "auto"
     IBKR_HOST: str = "127.0.0.1"
     IBKR_PORT: int = 7497
     IBKR_CLIENT_ID: int = 21
     IBKR_ACCOUNT: str = ""
+    IBKR_CPAPI_BASE_URL: str = "https://localhost:5000/v1/api"
+    IBKR_CPAPI_VERIFY_SSL: bool = False
+    IBKR_CPAPI_TIMEOUT: int = 12
     
     class Config:
         env_file = ".env"
