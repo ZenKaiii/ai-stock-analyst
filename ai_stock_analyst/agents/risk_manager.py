@@ -73,7 +73,7 @@ class RiskManager(BaseAgent):
         confidence = 0.78 if triggered else 0.6
 
         if triggered:
-            reasoning = "风险闸门触发: " + "；".join(triggers)
+            reasoning = "风险闸门触发:\n" + "\n".join(f"- {item}" for item in triggers)
         else:
             reasoning = "未触发重大风险闸门，可按常规仓位执行。"
 

@@ -393,6 +393,19 @@ stock-analyze --sync-ibkr-holdings --portfolio
 - `IBKR_CLIENT_ID`（默认 `21`）
 - `IBKR_ACCOUNT`（可选）
 
+参数含义：
+- `IBKR_HOST`: IBKR TWS/Gateway 所在主机地址（本机一般是 `127.0.0.1`）。
+- `IBKR_PORT`: API 端口，`7497` 通常是 Paper，`7496` 通常是 Live。
+- `IBKR_CLIENT_ID`: API 客户端连接编号，用于区分不同脚本连接（避免冲突）。
+- `IBKR_ACCOUNT`: 可选账户过滤（多账户场景下指定一个账户）。
+
+GitHub Actions 说明：
+- workflow 已新增 `mode=ibkr_portfolio`，会执行“同步持仓 + 直接分析”。
+- 需要在仓库 Secrets 配置 `IBKR_HOST/IBKR_PORT/IBKR_CLIENT_ID/IBKR_ACCOUNT`。
+- 若使用 GitHub 官方托管 runner，`127.0.0.1` 指向的是 runner 自己，不是你本地电脑。要成功连接 IBKR，通常需要：
+  1. 自建 `self-hosted runner`（与你 TWS/Gateway 在同一网络），或
+  2. 可公网访问且安全加固的 IBKR Gateway 服务。
+
 ---
 
 ### GitHub Actions 多模式运行

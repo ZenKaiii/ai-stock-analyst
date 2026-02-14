@@ -14,6 +14,7 @@ on:
           - analyze
           - discover
           - portfolio
+          - ibkr_portfolio
       stocks:
         description: 'Stock symbols (comma-separated, for analyze mode)'
         required: false
@@ -112,6 +113,24 @@ jobs:
           DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
         run: stock-analyze --portfolio
+
+      - name: Sync IBKR holdings and analyze portfolio
+        if: github.event.inputs.mode == 'ibkr_portfolio'
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+          DATABASE_URL: sqlite:///./data/stock_analyzer.db
+          BAILIAN_API_KEY: ${{ secrets.BAILIAN_API_KEY }}
+          BAILIAN_REGION: ${{ secrets.BAILIAN_REGION || 'beijing' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          IBKR_HOST: ${{ secrets.IBKR_HOST }}
+          IBKR_PORT: ${{ secrets.IBKR_PORT }}
+          IBKR_CLIENT_ID: ${{ secrets.IBKR_CLIENT_ID }}
+          IBKR_ACCOUNT: ${{ secrets.IBKR_ACCOUNT }}
+        run: |
+          pip install ib_async
+          stock-analyze --sync-ibkr-holdings --portfolio
 
       - name: Run backtest smoke
         if: always()

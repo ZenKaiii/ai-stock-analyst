@@ -28,14 +28,17 @@ class DingTalkNotifier(BaseNotifier):
             return False
         
         try:
-            text_content = self._format_text_for_dingtalk(title, content)
-            parts = self._split_text(text_content, max_len=1800)
+            markdown_text = self._format_markdown_for_dingtalk(title, content)
+            parts = self._split_markdown(markdown_text, max_len=3500)
             headers = {'Content-Type': 'application/json'}
 
             for idx, part in enumerate(parts):
                 message = {
-                    "msgtype": "text",
-                    "text": {"content": part}
+                    "msgtype": "markdown",
+                    "markdown": {
+                        "title": title if len(parts) == 1 else f"{title} ({idx + 1}/{len(parts)})",
+                        "text": part,
+                    },
                 }
                 response = requests.post(
                     self.webhook_url,
@@ -55,19 +58,18 @@ class DingTalkNotifier(BaseNotifier):
             logger.error(f"Failed to send DingTalk notification: {e}")
             return False
 
-    def _format_text_for_dingtalk(self, title: str, content: str) -> str:
-        """钉钉移动端对 markdown 支持有限，统一转为易读纯文本。"""
+    def _format_markdown_for_dingtalk(self, title: str, content: str) -> str:
+        """将通用 markdown 调整为钉钉更稳定的 markdown 形式。"""
         text = (content or "").replace("\r\n", "\n")
-        text = text.replace("---", "\n")
-        text = re.sub(r"^#+\s*", "", text, flags=re.MULTILINE)
-        text = text.replace("**", "").replace("`", "")
-        text = re.sub(r"^[ \t]*\*\s+", "- ", text, flags=re.MULTILINE)
+        text = text.replace("---", "\n\n---\n\n")
         text = re.sub(r"^[ \t]*•\s*", "- ", text, flags=re.MULTILINE)
+        text = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", text)
+        # 避免过深标题在钉钉端显示不稳定
+        text = re.sub(r"^####\s+", "### ", text, flags=re.MULTILINE)
         text = re.sub(r"\n{3,}", "\n\n", text).strip()
+        return f"## {title}\n\n{text}"
 
-        return f"{title}\n\n{text}"
-
-    def _split_text(self, text: str, max_len: int = 1800):
+    def _split_markdown(self, text: str, max_len: int = 3500):
         if len(text) <= max_len:
             return [text]
         chunks = []

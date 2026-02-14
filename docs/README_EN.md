@@ -213,6 +213,17 @@ Environment variables:
 - `IBKR_CLIENT_ID` (default `21`)
 - `IBKR_ACCOUNT` (optional account filter)
 
+Meaning:
+- `IBKR_HOST`: host of TWS/Gateway API service
+- `IBKR_PORT`: API port (`7497` paper / `7496` live in common setups)
+- `IBKR_CLIENT_ID`: API client identifier (avoid collisions across scripts)
+- `IBKR_ACCOUNT`: optional account filter in multi-account setup
+
+GitHub Actions note:
+- Workflow supports `mode=ibkr_portfolio` (sync + analyze).
+- On GitHub-hosted runners, `127.0.0.1` is the runner itself, not your local machine.
+- For reliable IBKR sync in CI, use a self-hosted runner near your TWS/Gateway or a securely exposed gateway endpoint.
+
 ### Environment Variables (.env file)
 
 ```bash

@@ -2,8 +2,7 @@
 股票推荐Agent - 从新闻和社交媒体中发现热门股票
 """
 import re
-from typing import Dict, List, Optional
-from datetime import datetime, timedelta
+from typing import Dict, List
 
 from ai_stock_analyst.agents.base import BaseAgent, AnalysisResult
 from ai_stock_analyst.rss import fetch_news
@@ -129,15 +128,6 @@ class RecommendationAgent(BaseAgent):
     def _extract_stock_signals(self, news_items: List) -> Dict:
         stock_signals = {}
         
-        common_acronyms = {
-            "CEO", "CFO", "CTO", "IPO", "ETF", "API", "USA", "UK", "EU", "UN", 
-            "FDA", "SEC", "GDP", "NYSE", "NASDAQ", "DOW", "ALL", "ARE", "HAS",
-            "NEW", "NOW", "CAN", "WIN", "TOP", "GET", "ONE", "TWO", "BIG",
-            "BEST", "WORST", "FIRST", "LAST", "NEXT", "YEAR", "DAY", "TIME",
-            "TODAY", "THIS", "THAT", "MORE", "LESS", "MOST", "SOME", "MANY",
-            "FOR", "OUT", "SET", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"
-        }
-        
         for news in news_items:
             title = news.get("title", "")
             title_upper = title.upper()
@@ -156,16 +146,13 @@ class RecommendationAgent(BaseAgent):
             for ticker in KNOWN_TICKERS:
                 if re.search(r'\b' + re.escape(ticker) + r'\b', title_upper):
                     found_tickers.add(ticker)
-            
-            paren_matches = re.findall(r'\(([A-Z]{1,5})\)', title_upper)
-            for m in paren_matches:
-                if m not in common_acronyms:
+
+            cashtag_matches = re.findall(r'\$([A-Z]{1,5})\b', title_upper)
+            for m in cashtag_matches:
+                if m in KNOWN_TICKERS:
                     found_tickers.add(m)
             
             for ticker in found_tickers:
-                if ticker in common_acronyms:
-                    continue
-                    
                 if ticker not in stock_signals:
                     stock_signals[ticker] = {
                         "signal": "HOLD",
@@ -173,13 +160,16 @@ class RecommendationAgent(BaseAgent):
                         "sentiment_score": [],
                         "news_count": 0,
                         "sources": [],
-                        "titles": []
+                        "titles": [],
+                        "brief_analysis": "",
+                        "evidence_news": [],
+                        "recommend_reason": "",
                     }
                 
                 stock_signals[ticker]["sentiment_score"].append(sentiment)
                 stock_signals[ticker]["news_count"] += 1
                 stock_signals[ticker]["sources"].append(source)
-                stock_signals[ticker]["titles"].append(title[:100])
+                stock_signals[ticker]["titles"].append(f"[{source}] {title[:120]}")
         
         for ticker, data in stock_signals.items():
             if data["sentiment_score"]:
@@ -199,16 +189,19 @@ class RecommendationAgent(BaseAgent):
         return stock_signals
     
     def _build_recommendation_text(self, top_picks: List) -> str:
-        lines = ["## 📈 发现热门机会\n", "以下是从最新新闻和社媒讨论中提取的潜在机会：\n"]
+        lines = ["## 📈 热门股票发现", "", "以下为候选股票的简要分析、新闻依据和推荐原因：", ""]
         
         for symbol, data in top_picks:
             emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(data["signal"], "⚪")
+            evidence_lines = data.get("evidence_news", [])[:2]
+            evidence_md = "\n".join(f"- {item}" for item in evidence_lines) if evidence_lines else "- 无"
             lines.append(
-                f"### {emoji} **{symbol}**\n"
-                f"*   **信号**: `{data['signal']}`\n"
-                f"*   **看涨评分**: `{data['bullish_score']:.2f}`\n"
-                f"*   **综合评分**: `{data.get('composite_score', data['bullish_score']):.2f}`\n"
-                f"*   **相关新闻**: {data['news_count']} 篇\n"
+                f"### {emoji} {symbol}\n"
+                f"- **结论**: `{data['signal']}`\n"
+                f"- **简要分析**: {data.get('brief_analysis', '暂无')}\n"
+                f"- **推荐原因**: {data.get('recommend_reason', '暂无')}\n"
+                f"- **看涨评分**: `{data['bullish_score']:.2f}` | **综合评分**: `{data.get('composite_score', data['bullish_score']):.2f}`\n"
+                f"- **新闻依据**:\n{evidence_md}\n"
             )
         
         return "\n".join(lines)
@@ -221,6 +214,13 @@ class RecommendationAgent(BaseAgent):
 
         for symbol, data in candidates:
             price = fetch_stock_price(symbol)
+            if "error" in price:
+                data["composite_score"] = max(data["bullish_score"] * 0.6, 0.0)
+                data["brief_analysis"] = "行情数据获取失败，暂按新闻情绪评估。"
+                data["evidence_news"] = data["titles"][:2]
+                data["recommend_reason"] = "仅有新闻侧证据，建议谨慎。"
+                continue
+
             trend = price.get("trend", "NEUTRAL")
             rsi14 = float(price.get("rsi14", 50) or 50)
             macd_hist = float(price.get("macd_hist", 0) or 0)
@@ -245,11 +245,28 @@ class RecommendationAgent(BaseAgent):
                 - risk_penalty
             )
             data["composite_score"] = max(composite, 0.0)
+            data["evidence_news"] = data["titles"][:3]
+            data["brief_analysis"] = (
+                f"趋势 {trend}，RSI14={rsi14:.1f}，MACD柱={macd_hist:.3f}，ATR%={atr_pct:.2f}。"
+            )
+            if composite >= 0.75:
+                reason = "新闻与技术面共振较强，具备相对优势。"
+            elif composite >= 0.62:
+                reason = "信号中性偏多，建议小仓位跟踪。"
+            else:
+                reason = "证据不足或波动偏高，优先观察。"
+            data["recommend_reason"] = reason
 
         # 未进入候选池的股票退化为原分数
         for _, data in stock_signals.items():
             if "composite_score" not in data:
                 data["composite_score"] = data["bullish_score"]
+            if not data.get("evidence_news"):
+                data["evidence_news"] = data["titles"][:2]
+            if not data.get("brief_analysis"):
+                data["brief_analysis"] = "样本较少，暂缺充分技术确认。"
+            if not data.get("recommend_reason"):
+                data["recommend_reason"] = "新闻证据不足，建议继续观察。"
 
         return stock_signals
     
@@ -304,7 +321,10 @@ def scan_for_opportunities(max_news: int = 100) -> Dict:
                 "signal": pick["signal"],
                 "bullish_score": pick["score"],
                 "composite_score": pick.get("composite_score", pick["score"]),
-                "news_count": pick["news_count"]
+                "news_count": pick["news_count"],
+                "brief_analysis": pick.get("brief_analysis", ""),
+                "recommend_reason": pick.get("recommend_reason", ""),
+                "evidence_news": pick.get("evidence_news", []),
             })
     
     return {

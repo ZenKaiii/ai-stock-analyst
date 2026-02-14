@@ -91,7 +91,10 @@ def main():
         if result.get("recommendations"):
             for rec in result["recommendations"]:
                 emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(rec["signal"], "⚪")
-                print(f"{emoji} {rec['symbol']:<6} | 信号: {rec['signal']:<5} | 评分: {rec['bullish_score']:.2f} | 新闻: {rec['news_count']}")
+                print(
+                    f"{emoji} {rec['symbol']:<6} | 信号: {rec['signal']:<5} | "
+                    f"看涨: {rec['bullish_score']:.2f} | 综合: {rec.get('composite_score', rec['bullish_score']):.2f} | 新闻: {rec['news_count']}"
+                )
         
         print("\n" + result.get("summary", ""))
         
