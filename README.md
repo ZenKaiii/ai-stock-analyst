@@ -402,9 +402,23 @@ stock-analyze --sync-ibkr-holdings --portfolio
 GitHub Actions 说明：
 - workflow 已新增 `mode=ibkr_portfolio`，会执行“同步持仓 + 直接分析”。
 - 需要在仓库 Secrets 配置 `IBKR_HOST/IBKR_PORT/IBKR_CLIENT_ID/IBKR_ACCOUNT`。
+- workflow 现已启用严格模式：若 IBKR 同步失败会直接失败，便于排查配置问题。
 - 若使用 GitHub 官方托管 runner，`127.0.0.1` 指向的是 runner 自己，不是你本地电脑。要成功连接 IBKR，通常需要：
   1. 自建 `self-hosted runner`（与你 TWS/Gateway 在同一网络），或
   2. 可公网访问且安全加固的 IBKR Gateway 服务。
+
+如何确认参数（TWS/Gateway）：
+1. 打开 TWS / IB Gateway。
+2. 进入 API 设置页面（常见路径：`Configure -> API -> Settings`）。
+3. 确认以下项：
+   - 启用 API 连接（Enable ActiveX and Socket Clients）。
+   - 记录 Socket Port（Paper 常见 7497，Live 常见 7496）。
+   - 若做白名单，确保 runner 所在 IP 在 Trusted IPs。
+4. `clientId` 由你自己定义（如 21），同一时刻避免与其他脚本重复。
+
+官方参考：
+- IBKR API 文档入口：<https://ibkrcampus.com/campus/ibkr-api-page/>
+- Python SDK（ib_async）：<https://github.com/ib-api-reloaded/ib_async>
 
 ---
 

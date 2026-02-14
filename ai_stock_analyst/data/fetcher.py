@@ -77,6 +77,9 @@ def fetch_stock_price(symbol: str) -> Dict:
         return {
             "symbol": symbol,
             "name": info.get("longName", symbol),
+            "sector": info.get("sector", ""),
+            "industry": info.get("industry", ""),
+            "business_summary": (info.get("longBusinessSummary", "") or "")[:260],
             "current_price": round(current, 2),
             "previous_close": round(previous, 2),
             "change": round(current - previous, 2),

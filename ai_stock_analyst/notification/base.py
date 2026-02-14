@@ -44,6 +44,14 @@ class BaseNotifier(ABC):
             
         return "⚠️ **市场异动监测**:\n" + "\n".join(f"*   {alert}" for alert in alerts)
 
+    def _clean_bullet_line(self, line: str) -> str:
+        if not line:
+            return ""
+        line = line.strip()
+        while line and line[0] in {"•", "-", "*", "·"}:
+            line = line[1:].strip()
+        return line
+
     def format_stock_message(self, analysis_result: Dict[str, Any]) -> str:
         symbol = analysis_result.get('symbol', '')
         decision = analysis_result.get('decision', {})
@@ -132,7 +140,7 @@ class BaseNotifier(ABC):
             return ""
         lines = ["📰 重要信息速览"]
         for item in news[:4]:
-            title = item.get('title', '')[:70]
+            title = self._clean_bullet_line(item.get('title', '')[:90])
             if title:
                 lines.append(f"• {title}...")
         return '\n'.join(lines)
@@ -144,10 +152,10 @@ class BaseNotifier(ABC):
                 lines = ["📊 技术面"]
                 key_lines = []
                 for line in reasoning.split('\n'):
-                    line = line.strip()
+                    line = self._clean_bullet_line(line)
                     if line and len(line) > 10 and len(key_lines) < 3:
                         line = line.replace('**', '')
-                        key_lines.append(f"  • {line[:100]}")
+                        key_lines.append(f"  • {line[:120]}")
                 if key_lines:
                     lines.extend(key_lines)
                 return '\n'.join(lines)
@@ -159,9 +167,9 @@ class BaseNotifier(ABC):
         for a in analyses:
             reasoning = a.get('reasoning', '')
             for line in reasoning.split('\n'):
-                line = line.strip()
+                line = self._clean_bullet_line(line)
                 if any(kw in line.lower() for kw in risk_keywords) and len(line) > 20:
-                    risks.append(f"• {line[:80]}")
+                    risks.append(f"• {line[:110]}")
                     if len(risks) >= 3:
                         break
         if risks:
@@ -174,9 +182,9 @@ class BaseNotifier(ABC):
         for a in analyses:
             reasoning = a.get('reasoning', '')
             for line in reasoning.split('\n'):
-                line = line.strip()
+                line = self._clean_bullet_line(line)
                 if any(kw in line.lower() for kw in catalyst_keywords) and len(line) > 20:
-                    catalysts.append(f"• {line[:80]}")
+                    catalysts.append(f"• {line[:110]}")
                     if len(catalysts) >= 3:
                         break
         if catalysts:

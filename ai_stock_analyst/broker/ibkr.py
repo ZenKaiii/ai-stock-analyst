@@ -82,10 +82,10 @@ def fetch_ibkr_positions(
     - IBKR_CLIENT_ID (default 21)
     - IBKR_ACCOUNT (optional)
     """
-    host = host or os.getenv("IBKR_HOST", "127.0.0.1")
-    port = int(port or os.getenv("IBKR_PORT", "7497"))
-    client_id = int(client_id or os.getenv("IBKR_CLIENT_ID", "21"))
-    account = account or os.getenv("IBKR_ACCOUNT", "") or None
+    host = _read_str(host, "IBKR_HOST", "127.0.0.1")
+    port = _read_int(port, "IBKR_PORT", 7497)
+    client_id = _read_int(client_id, "IBKR_CLIENT_ID", 21)
+    account = _read_str(account, "IBKR_ACCOUNT", "") or None
 
     errors = []
     for fetcher in (_fetch_with_ib_async, _fetch_with_ib_insync):
@@ -99,3 +99,25 @@ def fetch_ibkr_positions(
         "or `ib_insync`, and ensure TWS/Gateway API is reachable. "
         f"Details: {' | '.join(errors)}"
     )
+
+
+def _read_str(value: Optional[str], env_key: str, default: str) -> str:
+    if value is not None and str(value).strip():
+        return str(value).strip()
+    env_val = os.getenv(env_key, "").strip()
+    return env_val if env_val else default
+
+
+def _read_int(value: Optional[int], env_key: str, default: int) -> int:
+    if value is not None:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+    env_val = os.getenv(env_key, "").strip()
+    if not env_val:
+        return default
+    try:
+        return int(env_val)
+    except ValueError:
+        return default

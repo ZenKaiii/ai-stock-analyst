@@ -161,15 +161,28 @@ class RecommendationAgent(BaseAgent):
                         "news_count": 0,
                         "sources": [],
                         "titles": [],
+                        "news_items": [],
                         "brief_analysis": "",
                         "evidence_news": [],
                         "recommend_reason": "",
+                        "company_name": "",
+                        "sector": "",
+                        "industry": "",
+                        "business": "",
                     }
                 
                 stock_signals[ticker]["sentiment_score"].append(sentiment)
                 stock_signals[ticker]["news_count"] += 1
                 stock_signals[ticker]["sources"].append(source)
                 stock_signals[ticker]["titles"].append(f"[{source}] {title[:120]}")
+                stock_signals[ticker]["news_items"].append(
+                    {
+                        "title": title[:180],
+                        "source": source,
+                        "summary": news.get("summary", "")[:260],
+                        "link": news.get("link", ""),
+                    }
+                )
         
         for ticker, data in stock_signals.items():
             if data["sentiment_score"]:
@@ -195,9 +208,15 @@ class RecommendationAgent(BaseAgent):
             emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(data["signal"], "⚪")
             evidence_lines = data.get("evidence_news", [])[:2]
             evidence_md = "\n".join(f"- {item}" for item in evidence_lines) if evidence_lines else "- 无"
+            company = data.get("company_name") or symbol
+            sector = data.get("sector") or "未知板块"
+            industry = data.get("industry") or "未知行业"
+            business = data.get("business") or "暂无主营业务描述。"
             lines.append(
-                f"### {emoji} {symbol}\n"
+                f"### {emoji} {symbol} ({company})\n"
                 f"- **结论**: `{data['signal']}`\n"
+                f"- **公司/行业**: {sector} / {industry}\n"
+                f"- **公司做什么**: {business}\n"
                 f"- **简要分析**: {data.get('brief_analysis', '暂无')}\n"
                 f"- **推荐原因**: {data.get('recommend_reason', '暂无')}\n"
                 f"- **看涨评分**: `{data['bullish_score']:.2f}` | **综合评分**: `{data.get('composite_score', data['bullish_score']):.2f}`\n"
@@ -217,7 +236,7 @@ class RecommendationAgent(BaseAgent):
             if "error" in price:
                 data["composite_score"] = max(data["bullish_score"] * 0.6, 0.0)
                 data["brief_analysis"] = "行情数据获取失败，暂按新闻情绪评估。"
-                data["evidence_news"] = data["titles"][:2]
+                data["evidence_news"] = self._summarize_news_evidence(data.get("news_items", [])[:2])
                 data["recommend_reason"] = "仅有新闻侧证据，建议谨慎。"
                 continue
 
@@ -225,6 +244,10 @@ class RecommendationAgent(BaseAgent):
             rsi14 = float(price.get("rsi14", 50) or 50)
             macd_hist = float(price.get("macd_hist", 0) or 0)
             atr_pct = float(price.get("atr_pct", 0) or 0)
+            data["company_name"] = price.get("name", symbol)
+            data["sector"] = price.get("sector", "")
+            data["industry"] = price.get("industry", "")
+            data["business"] = price.get("business_summary", "")
 
             momentum = 0.5
             if trend == "BULLISH":
@@ -245,16 +268,16 @@ class RecommendationAgent(BaseAgent):
                 - risk_penalty
             )
             data["composite_score"] = max(composite, 0.0)
-            data["evidence_news"] = data["titles"][:3]
+            data["evidence_news"] = self._summarize_news_evidence(data.get("news_items", [])[:3])
             data["brief_analysis"] = (
                 f"趋势 {trend}，RSI14={rsi14:.1f}，MACD柱={macd_hist:.3f}，ATR%={atr_pct:.2f}。"
             )
             if composite >= 0.75:
-                reason = "新闻与技术面共振较强，具备相对优势。"
+                reason = "新闻热度、技术动量与风险控制三方面同向，短期有较强跟踪价值。"
             elif composite >= 0.62:
-                reason = "信号中性偏多，建议小仓位跟踪。"
+                reason = "信号中性偏多，但确定性一般，建议小仓位、分批观察。"
             else:
-                reason = "证据不足或波动偏高，优先观察。"
+                reason = "证据不足或波动偏高，暂以观察为主，等待更清晰催化。"
             data["recommend_reason"] = reason
 
         # 未进入候选池的股票退化为原分数
@@ -262,13 +285,33 @@ class RecommendationAgent(BaseAgent):
             if "composite_score" not in data:
                 data["composite_score"] = data["bullish_score"]
             if not data.get("evidence_news"):
-                data["evidence_news"] = data["titles"][:2]
+                data["evidence_news"] = self._summarize_news_evidence(data.get("news_items", [])[:2])
             if not data.get("brief_analysis"):
                 data["brief_analysis"] = "样本较少，暂缺充分技术确认。"
             if not data.get("recommend_reason"):
                 data["recommend_reason"] = "新闻证据不足，建议继续观察。"
 
         return stock_signals
+
+    def _summarize_news_evidence(self, news_items: List[Dict]) -> List[str]:
+        summaries: List[str] = []
+        for item in news_items:
+            title = item.get("title", "")
+            source = item.get("source", "Unknown")
+            summary = item.get("summary", "")
+            impact = self._infer_news_impact(title, summary)
+            summaries.append(f"[{source}] {title}；解读：{impact}")
+        return summaries
+
+    def _infer_news_impact(self, title: str, summary: str) -> str:
+        text = f"{title} {summary}".lower()
+        if any(k in text for k in ["beat", "upgrade", "record", "growth", "partnership", "订单", "超预期", "上调"]):
+            return "偏利好，通常对应盈利预期或订单增长。"
+        if any(k in text for k in ["downgrade", "miss", "lawsuit", "tariff", "sanction", "诉讼", "下调", "关税"]):
+            return "偏利空，可能压制利润率或估值。"
+        if any(k in text for k in ["earnings", "guidance", "财报", "指引"]):
+            return "中性偏事件驱动，需结合财报细节确认方向。"
+        return "信息偏中性，建议结合后续价格与成交量确认。"
     
     def _extract_risks(self, top_picks: List) -> List[str]:
         """提取风险因素"""
@@ -310,7 +353,12 @@ def scan_for_opportunities(max_news: int = 100) -> Dict:
     
     # 提取股票信号
     agent = RecommendationAgent()
-    news_data = {"all_news": [{"title": n.title, "source": n.source} for n in all_news]}
+    news_data = {
+        "all_news": [
+            {"title": n.title, "source": n.source, "summary": n.summary, "link": n.link}
+            for n in all_news
+        ]
+    }
     result = agent.analyze(news_data)
     
     recommendations = []

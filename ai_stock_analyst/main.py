@@ -35,6 +35,7 @@ def main():
     parser.add_argument("--add-holding", type=str, help="Add holding: SYMBOL,SHARES,COST")
     parser.add_argument("--list-holdings", action="store_true", help="List all holdings")
     parser.add_argument("--sync-ibkr-holdings", action="store_true", help="Sync holdings from IBKR TWS/Gateway")
+    parser.add_argument("--strict-ibkr", action="store_true", help="Exit non-zero if IBKR sync fails")
     
     args = parser.parse_args()
     
@@ -77,6 +78,8 @@ def main():
                 return
         except Exception as e:
             print(f"IBKR sync failed: {e}")
+            if args.strict_ibkr:
+                raise SystemExit(2)
             if not args.portfolio:
                 return
     

@@ -130,7 +130,7 @@ jobs:
           IBKR_ACCOUNT: ${{ secrets.IBKR_ACCOUNT }}
         run: |
           pip install ib_async
-          stock-analyze --sync-ibkr-holdings --portfolio
+          stock-analyze --sync-ibkr-holdings --portfolio --strict-ibkr
 
       - name: Run backtest smoke
         if: always()

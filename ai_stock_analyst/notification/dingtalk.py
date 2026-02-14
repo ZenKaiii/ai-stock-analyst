@@ -61,6 +61,8 @@ class DingTalkNotifier(BaseNotifier):
     def _format_markdown_for_dingtalk(self, title: str, content: str) -> str:
         """将通用 markdown 调整为钉钉更稳定的 markdown 形式。"""
         text = (content or "").replace("\r\n", "\n")
+        # 去掉与 title 重复的首行标题
+        text = re.sub(rf"^\s*#+\s*{re.escape(title)}\s*\n+", "", text, flags=re.IGNORECASE)
         text = text.replace("---", "\n\n---\n\n")
         text = re.sub(r"^[ \t]*•\s*", "- ", text, flags=re.MULTILINE)
         text = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", text)
@@ -113,3 +115,47 @@ class DingTalkNotifier(BaseNotifier):
         except Exception as e:
             logger.error(f"Failed to send DingTalk text: {e}")
             return False
+
+    def format_stock_message(self, analysis_result):
+        symbol = analysis_result.get("symbol", "")
+        decision = analysis_result.get("decision", {})
+        analyses = analysis_result.get("analyses", [])
+        news = analysis_result.get("news", [])
+
+        signal = decision.get("signal", "HOLD")
+        confidence = decision.get("confidence", 0)
+        signal_icon = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(signal, "⚪")
+
+        news_lines = []
+        for idx, item in enumerate(news[:3], start=1):
+            title = self._clean_bullet_line(item.get("title", ""))[:90]
+            source = item.get("source", "Unknown")
+            if title:
+                news_lines.append(f"{idx}. **[{source}]** {title}")
+        news_block = "\n".join(news_lines) if news_lines else "无重点新闻"
+
+        risk_lines = []
+        for a in analyses:
+            if a.get("agent") == "RiskManager":
+                for line in str(a.get("reasoning", "")).split("\n"):
+                    cleaned = self._clean_bullet_line(line)
+                    if cleaned and len(cleaned) > 4:
+                        risk_lines.append(f"- {cleaned[:120]}")
+        risk_block = "\n".join(risk_lines[:4]) if risk_lines else "- 暂无明显风险闸门触发"
+
+        return (
+            f"## 🎯 {symbol} 决策仪表盘\n\n"
+            f"### {signal_icon} 结论\n"
+            f"- **交易信号**: `{signal}`\n"
+            f"- **置信度**: `{confidence}%`\n"
+            f"- **建议仓位**: `{decision.get('position_size', '5-10%')}`\n\n"
+            f"### 💰 交易计划\n"
+            f"- **入场价**: `${decision.get('entry_price', 'N/A')}`\n"
+            f"- **止损价**: `${decision.get('stop_loss', 'N/A')}`\n"
+            f"- **目标价**: `${decision.get('target_price', 'N/A')}`\n\n"
+            f"### 📰 关键新闻依据\n"
+            f"{news_block}\n\n"
+            f"### 🚨 风险提示\n"
+            f"{risk_block}\n\n"
+            f"> AI Stock Analyst"
+        )

@@ -221,8 +221,22 @@ Meaning:
 
 GitHub Actions note:
 - Workflow supports `mode=ibkr_portfolio` (sync + analyze).
+- Workflow uses strict IBKR sync (`--strict-ibkr`): job fails fast when sync fails.
 - On GitHub-hosted runners, `127.0.0.1` is the runner itself, not your local machine.
 - For reliable IBKR sync in CI, use a self-hosted runner near your TWS/Gateway or a securely exposed gateway endpoint.
+
+How to confirm values in TWS/Gateway:
+1. Open TWS / IB Gateway.
+2. Go to API settings (common path: `Configure -> API -> Settings`).
+3. Confirm:
+- API socket clients are enabled.
+- Socket port value (paper commonly `7497`, live commonly `7496`).
+- Trusted IPs include your runner host (if enabled).
+4. Choose your own `clientId` (e.g. `21`) and avoid collisions with other scripts.
+
+References:
+- IBKR API hub: <https://ibkrcampus.com/campus/ibkr-api-page/>
+- Python SDK (`ib_async`): <https://github.com/ib-api-reloaded/ib_async>
 
 ### Environment Variables (.env file)
 
