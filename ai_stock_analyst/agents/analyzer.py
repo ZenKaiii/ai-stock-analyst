@@ -10,6 +10,10 @@ from ai_stock_analyst.agents.news import NewsAnalyst
 from ai_stock_analyst.agents.social import SocialMediaAnalyst
 from ai_stock_analyst.agents.portfolio import PortfolioManager
 from ai_stock_analyst.agents.anomaly import AnomalyAgent
+from ai_stock_analyst.agents.fundamental import FundamentalAnalyst
+from ai_stock_analyst.agents.bull_researcher import BullResearcher
+from ai_stock_analyst.agents.bear_researcher import BearResearcher
+from ai_stock_analyst.agents.risk_manager import RiskManager
 
 
 class StockAnalyzer:
@@ -21,6 +25,10 @@ class StockAnalyzer:
             "news": NewsAnalyst(),
             "social": SocialMediaAnalyst(),
             "anomaly": AnomalyAgent(),
+            "fundamental": FundamentalAnalyst(),
+            "bull": BullResearcher(),
+            "bear": BearResearcher(),
+            "risk": RiskManager(),
         }
         self.portfolio_manager = PortfolioManager()
     
@@ -45,21 +53,35 @@ class StockAnalyzer:
             anomaly_result = self.agents["anomaly"].analyze(data)
             analyses.append(anomaly_result)
         
+        # 基本面分析
+        if "price_data" in data:
+            fundamental_result = self.agents["fundamental"].analyze(data)
+            analyses.append(fundamental_result)
+
         # 新闻分析
         if "news" in data and data["news"]:
             news_result = self.agents["news"].analyze(data)
             analyses.append(news_result)
+
+            bull_result = self.agents["bull"].analyze(data)
+            bear_result = self.agents["bear"].analyze(data)
+            analyses.extend([bull_result, bear_result])
         
         # 社媒分析
         if "social_data" in data:
             social_result = self.agents["social"].analyze(data)
             analyses.append(social_result)
+
+        # 风险闸门分析（在最终决策前）
+        risk_result = self.agents["risk"].analyze(data)
+        analyses.append(risk_result)
         
         # 投资组合决策
         decision_data = {
             "symbol": symbol,
             "analyses": analyses,
-            "price_data": data.get("price_data", {})
+            "price_data": data.get("price_data", {}),
+            "risk_assessment": risk_result.indicators,
         }
         decision = self.portfolio_manager.analyze(decision_data)
         

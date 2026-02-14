@@ -4,6 +4,7 @@
 import yfinance as yf
 import logging
 from typing import Dict
+from ai_stock_analyst.data.features import calculate_features
 
 logger = logging.getLogger(__name__)
 
@@ -16,13 +17,7 @@ def fetch_stock_price(symbol: str) -> Dict:
         # Fetch 6 months of data for anomaly detection (Z-scores)
         hist = ticker.history(period="6mo")
         
-        # 计算均线
-        ma5 = ma20 = 0
-        trend = "NEUTRAL"
-        if not hist.empty:
-            ma5 = hist["Close"].tail(5).mean()
-            ma20 = hist["Close"].tail(20).mean()
-            trend = "BULLISH" if ma5 > ma20 else "BEARISH"
+        features = calculate_features(hist)
         
         current = info.get("currentPrice") or info.get("regularMarketPrice", 0)
         previous = info.get("previousClose", 1)
@@ -37,9 +32,17 @@ def fetch_stock_price(symbol: str) -> Dict:
             "volume": info.get("volume", 0),
             "pe_ratio": info.get("trailingPE", 0),
             "market_cap": info.get("marketCap", 0),
-            "ma5": round(ma5, 2),
-            "ma20": round(ma20, 2),
-            "trend": trend,
+            "ma5": features.get("ma5", 0),
+            "ma20": features.get("ma20", 0),
+            "trend": features.get("trend", "NEUTRAL"),
+            "rsi14": features.get("rsi14", 50),
+            "macd": features.get("macd", 0),
+            "macd_signal": features.get("macd_signal", 0),
+            "macd_hist": features.get("macd_hist", 0),
+            "atr14": features.get("atr14", 0),
+            "atr_pct": features.get("atr_pct", 0),
+            "volatility_20d": features.get("volatility_20d", 0),
+            "data_quality": features.get("data_quality", 0),
             "history": hist  # Return full history DataFrame for agents to use
         }
     except Exception as e:

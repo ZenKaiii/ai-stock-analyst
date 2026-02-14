@@ -30,6 +30,10 @@ class TechnicalAnalyst(BaseAgent):
         ma20 = price_data.get("ma20", 0)
         trend = price_data.get("trend", "NEUTRAL")
         change_percent = price_data.get("change_percent", 0)
+        rsi14 = price_data.get("rsi14", 50)
+        macd = price_data.get("macd", 0)
+        macd_signal = price_data.get("macd_signal", 0)
+        atr_pct = price_data.get("atr_pct", 0)
         
         # 构建分析prompt
         prompt = f"""
@@ -40,6 +44,9 @@ class TechnicalAnalyst(BaseAgent):
 20日均线: ${ma20}
 趋势: {trend}
 涨跌: {change_percent}%
+RSI14: {rsi14}
+MACD: {macd} / Signal: {macd_signal}
+ATR占比: {atr_pct}%
 
 请给出：
 1. 交易信号 (BUY/SELL/HOLD)
@@ -51,9 +58,9 @@ class TechnicalAnalyst(BaseAgent):
             response = self.call_llm(prompt, "你是专业技术分析师，擅长技术分析")
             signal = self._extract_signal(response)
             confidence = 0.7 if trend != "NEUTRAL" else 0.5
-        except Exception as e:
+        except Exception:
             # LLM失败时使用规则判断
-            signal = self._rule_based_signal(trend, change_percent)
+            signal = self._rule_based_signal(trend, change_percent, rsi14, macd, macd_signal)
             response = f"基于规则判断: {signal}"
             confidence = 0.5
         
@@ -67,7 +74,11 @@ class TechnicalAnalyst(BaseAgent):
                 "ma5": ma5,
                 "ma20": ma20,
                 "trend": trend,
-                "change_percent": change_percent
+                "change_percent": change_percent,
+                "rsi14": rsi14,
+                "macd": macd,
+                "macd_signal": macd_signal,
+                "atr_pct": atr_pct,
             },
             risks=["技术分析有滞后性", "单一指标可能失效"]
         )
@@ -81,10 +92,12 @@ class TechnicalAnalyst(BaseAgent):
             return "SELL"
         return "HOLD"
     
-    def _rule_based_signal(self, trend: str, change_percent: float) -> str:
+    def _rule_based_signal(
+        self, trend: str, change_percent: float, rsi14: float, macd: float, macd_signal: float
+    ) -> str:
         """基于规则的判断（LLM失败时使用）"""
-        if trend == "BULLISH" and change_percent > 2:
+        if trend == "BULLISH" and macd >= macd_signal and rsi14 < 75 and change_percent > -1:
             return "BUY"
-        elif trend == "BEARISH" and change_percent < -2:
+        elif trend == "BEARISH" and macd < macd_signal and (rsi14 > 78 or change_percent < -2):
             return "SELL"
         return "HOLD"

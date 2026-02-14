@@ -17,6 +17,8 @@
 | 模块 | 功能 | 说明 |
 |------|------|------|
 | 🤖 AI分析 | 决策仪表盘 | 核心结论 + 精确买卖点位 + 多维度评分 |
+| 🧩 多Agent协作 | 研究员分工 | Technical + Fundamental + Bull + Bear + RiskManager 协同决策 |
+| 🛡️ 风控 | Risk Gate | 高波动/事件窗口/数据质量异常时自动降级 BUY 信号 |
 | 📡 新闻 | RSS聚合 | 实时获取Seeking Alpha、MarketWatch等财经新闻 |
 | 🐦 社媒 | 情绪监控 | Twitter/X和Reddit讨论情绪分析 |
 | 🧠 LLM | 双模型支持 | 阿里云百炼 DeepSeek(主要) + Google Gemini(备用) |
