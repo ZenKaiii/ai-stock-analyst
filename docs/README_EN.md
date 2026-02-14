@@ -225,6 +225,12 @@ GitHub Actions note:
 - On GitHub-hosted runners, `127.0.0.1` is the runner itself, not your local machine.
 - For reliable IBKR sync in CI, use a self-hosted runner near your TWS/Gateway or a securely exposed gateway endpoint.
 
+IBKR API onboarding for beginners:
+- For holdings-only use cases, this project uses **TWS/Gateway Socket API** via `ib_async`/`ib_insync`.
+- No separate API token is required for Socket API; authentication depends on an active logged-in TWS/Gateway session.
+- **Client Portal API (CPAPI)** is another official path, but it requires running CP Gateway and maintaining an authenticated web session.
+- For this repository, Socket API is the simplest and most reliable integration path.
+
 How to confirm values in TWS/Gateway:
 1. Open TWS / IB Gateway.
 2. Go to API settings (common path: `Configure -> API -> Settings`).
@@ -236,6 +242,9 @@ How to confirm values in TWS/Gateway:
 
 References:
 - IBKR API hub: <https://ibkrcampus.com/campus/ibkr-api-page/>
+- IBKR CN API overview (official page): <https://www.interactivebrokers.com/cn/trading/ib-api.php#api-software>
+- TWS API initial setup (default ports): <https://ibkrcampus.com/campus/ibkr-api-page/twsapi-doc/#initial-setup>
+- Client Portal API auth/session docs: <https://ibkrcampus.com/campus/ibkr-api-page/cpapi-v1/>
 - Python SDK (`ib_async`): <https://github.com/ib-api-reloaded/ib_async>
 
 ### Environment Variables (.env file)
@@ -336,7 +345,9 @@ Supports Markdown format, including:
 - 🎯 Buy/Sell signals
 - 💰 Suggested prices (entry/stop/target)
 - 📈 Technical analysis highlights
-- 📰 Related news summary
+- 📰 News summary + interpretation
+- 📚 Beginner indicator explanation (RSI/MACD/ATR)
+- ✅ Action suggestions by scenario (no position / holding)
 
 ---
 

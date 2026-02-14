@@ -327,7 +327,8 @@ stock-analyze --discover
 - 扫描所有RSS新闻源
 - 提取股票代码和情绪关键词
 - 计算看涨评分 + 综合评分（情绪+趋势+来源多样性）
-- 推荐Top 5热门股票
+- 推荐Top 5热门股票（中文优先）
+- 每只候选股输出：公司做什么、行业/板块、新闻事件概述、为什么利好/利空
 
 ---
 
@@ -416,27 +417,47 @@ GitHub Actions 说明：
    - 若做白名单，确保 runner 所在 IP 在 Trusted IPs。
 4. `clientId` 由你自己定义（如 21），同一时刻避免与其他脚本重复。
 
+#### IBKR API 新手说明（按官方文档）
+
+如果你的目标只是“读取持仓”，本项目优先使用 **TWS/Gateway Socket API**（`ib_async` / `ib_insync`）：
+
+- 不需要单独申请 API Token。
+- 鉴权依赖你已经登录的 TWS 或 IB Gateway 会话。
+- 只要 `host + port + clientId` 正确，并且 API 开关打开，即可读取 `positions`。
+
+另一条官方路线是 **Client Portal Web API (CPAPI)**：
+
+- 需要先启动本地或服务器侧的 Client Portal Gateway。
+- 通过浏览器登录后建立会话，再访问 REST 接口（例如账户和持仓端点）。
+- 官方文档明确会话需要认证状态，且没有“纯 API Key 一次配置永久使用”的简单模式。
+
+结论：对当前仓库“持仓读取+分析”场景，Socket API 更直接、改造成本更低。
+
 官方参考：
 - IBKR API 文档入口：<https://ibkrcampus.com/campus/ibkr-api-page/>
+- IBKR 中国站 API 介绍（你提供的入口）：<https://www.interactivebrokers.com/cn/trading/ib-api.php#api-software>
+- TWS API 初始配置（含默认端口 7496/7497）：<https://ibkrcampus.com/campus/ibkr-api-page/twsapi-doc/#initial-setup>
+- Client Portal API 认证说明：<https://ibkrcampus.com/campus/ibkr-api-page/cpapi-v1/>
 - Python SDK（ib_async）：<https://github.com/ib-api-reloaded/ib_async>
 
 ---
 
 ### GitHub Actions 多模式运行
 
-workflow 现在支持三种模式：
+workflow 现在支持四种模式：
 
 | Mode | 说明 | 触发方式 |
 |------|------|---------|
 | `analyze` | 分析 STOCK_LIST 中的股票（默认） | 定时或手动 |
 | `discover` | 发现热门股票 | 手动选择 mode |
 | `portfolio` | 分析持仓 | 手动选择 mode |
+| `ibkr_portfolio` | 同步 IBKR 持仓并分析 | 手动选择 mode |
 
 **手动触发时选择 mode：**
 
 ```
 Actions → Daily Stock Analysis → Run workflow
-→ Mode: 选择 analyze/discover/portfolio
+→ Mode: 选择 analyze/discover/portfolio/ibkr_portfolio
 → 点击 Run workflow
 ```
 
@@ -464,14 +485,17 @@ AI Stock Analyzer
 
 ### 钉钉/飞书推送
 
-钉钉已优化为移动端友好的纯文本换行格式（避免长段挤成一行）；飞书/企业微信继续使用 markdown 卡片。
+钉钉/飞书/企业微信均使用 markdown 结构化消息。钉钉端已针对移动端做了标题去重、长消息分段和单层列表优化。
+钉钉机器人文档（markdown 消息类型）可参考：<https://open.dingtalk.com/document/robots/custom-robot-access>
 
 通知包含：
 - 📊 分析结果摘要
 - 🎯 买卖信号
 - 💰 建议价格（入场/止损/目标）
 - 📈 技术面分析要点
-- 📰 相关新闻摘要
+- 📰 新闻“概要+解读”
+- 📚 指标小白解释（RSI/MACD/ATR）
+- ✅ 分场景操作建议（空仓/持仓）
 
 ---
 

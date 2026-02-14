@@ -94,8 +94,10 @@ def main():
         if result.get("recommendations"):
             for rec in result["recommendations"]:
                 emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(rec["signal"], "⚪")
+                company = rec.get("company_name", rec["symbol"])
+                sector = rec.get("sector", "未知板块")
                 print(
-                    f"{emoji} {rec['symbol']:<6} | 信号: {rec['signal']:<5} | "
+                    f"{emoji} {rec['symbol']:<6} ({company}) | 板块: {sector} | 信号: {rec['signal']:<5} | "
                     f"看涨: {rec['bullish_score']:.2f} | 综合: {rec.get('composite_score', rec['bullish_score']):.2f} | 新闻: {rec['news_count']}"
                 )
         
@@ -166,7 +168,15 @@ def main():
             analysis_data = {
                 'symbol': symbol,
                 'price_data': price_data,
-                'news': [{'title': n.title, 'source': n.source} for n in news[:10]],
+                'news': [
+                    {
+                        'title': n.title,
+                        'source': n.source,
+                        'summary': n.summary,
+                        'link': n.link,
+                    }
+                    for n in news[:10]
+                ],
                 'social_data': social_data
             }
             

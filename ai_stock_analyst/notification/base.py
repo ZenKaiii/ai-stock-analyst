@@ -140,9 +140,14 @@ class BaseNotifier(ABC):
             return ""
         lines = ["📰 重要信息速览"]
         for item in news[:4]:
-            title = self._clean_bullet_line(item.get('title', '')[:90])
+            title = self._clean_bullet_line(item.get('title', '')[:70])
+            summary = self._clean_bullet_line(item.get('summary', '')[:80])
+            source = item.get('source', '来源未知')
             if title:
-                lines.append(f"• {title}...")
+                if summary:
+                    lines.append(f"• [{source}] {title} | 概要: {summary}")
+                else:
+                    lines.append(f"• [{source}] {title}")
         return '\n'.join(lines)
     
     def _format_technical_analysis(self, analyses: List) -> str:

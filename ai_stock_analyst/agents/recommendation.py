@@ -117,7 +117,14 @@ class RecommendationAgent(BaseAgent):
                         "score": round(data["bullish_score"], 2),
                         "composite_score": round(data.get("composite_score", data["bullish_score"]), 2),
                         "signal": data["signal"],
-                        "news_count": data["news_count"]
+                        "news_count": data["news_count"],
+                        "company_name": data.get("company_name", symbol),
+                        "sector": data.get("sector", ""),
+                        "industry": data.get("industry", ""),
+                        "business": data.get("business", ""),
+                        "brief_analysis": data.get("brief_analysis", ""),
+                        "recommend_reason": data.get("recommend_reason", ""),
+                        "evidence_news": data.get("evidence_news", []),
                     }
                     for symbol, data in top_picks
                 ]
@@ -202,16 +209,16 @@ class RecommendationAgent(BaseAgent):
         return stock_signals
     
     def _build_recommendation_text(self, top_picks: List) -> str:
-        lines = ["## 📈 热门股票发现", "", "以下为候选股票的简要分析、新闻依据和推荐原因：", ""]
+        lines = ["以下为候选股票的简要分析、新闻依据和推荐原因：", ""]
         
         for symbol, data in top_picks:
             emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(data["signal"], "⚪")
             evidence_lines = data.get("evidence_news", [])[:2]
             evidence_md = "\n".join(f"- {item}" for item in evidence_lines) if evidence_lines else "- 无"
             company = data.get("company_name") or symbol
-            sector = data.get("sector") or "未知板块"
-            industry = data.get("industry") or "未知行业"
-            business = data.get("business") or "暂无主营业务描述。"
+            sector = self._to_cn_label(data.get("sector") or "未知板块")
+            industry = self._to_cn_label(data.get("industry") or "未知行业")
+            business = self._describe_business_for_beginner(company, data.get("business", ""), sector, industry)
             lines.append(
                 f"### {emoji} {symbol} ({company})\n"
                 f"- **结论**: `{data['signal']}`\n"
@@ -299,8 +306,9 @@ class RecommendationAgent(BaseAgent):
             title = item.get("title", "")
             source = item.get("source", "Unknown")
             summary = item.get("summary", "")
+            event_cn = self._summarize_news_event(title, summary)
             impact = self._infer_news_impact(title, summary)
-            summaries.append(f"[{source}] {title}；解读：{impact}")
+            summaries.append(f"[{source}] 事件：{event_cn}；解读：{impact}")
         return summaries
 
     def _infer_news_impact(self, title: str, summary: str) -> str:
@@ -312,6 +320,71 @@ class RecommendationAgent(BaseAgent):
         if any(k in text for k in ["earnings", "guidance", "财报", "指引"]):
             return "中性偏事件驱动，需结合财报细节确认方向。"
         return "信息偏中性，建议结合后续价格与成交量确认。"
+
+    def _summarize_news_event(self, title: str, summary: str) -> str:
+        text = f"{title} {summary}".strip()
+        lower = text.lower()
+        if any(k in lower for k in ["earnings", "财报", "guidance", "指引"]):
+            return "公司披露业绩或业绩指引更新"
+        if any(k in lower for k in ["trump", "tariff", "关税", "sanction", "制裁"]):
+            return "政策/地缘政治消息影响相关行业预期"
+        if any(k in lower for k in ["partnership", "contract", "订单", "合作", "签约"]):
+            return "公司获得合作或订单催化"
+        if any(k in lower for k in ["rate", "inflation", "cpi", "利率", "通胀"]):
+            return "宏观利率或通胀变化影响估值预期"
+        short_title = title.strip()[:50]
+        return short_title if short_title else "一般经营动态更新"
+
+    def _to_cn_label(self, text: str) -> str:
+        if not text:
+            return "未知"
+        table = {
+            "technology": "科技",
+            "consumer cyclical": "可选消费",
+            "consumer defensive": "必选消费",
+            "financial services": "金融服务",
+            "healthcare": "医疗健康",
+            "industrials": "工业",
+            "energy": "能源",
+            "communication services": "通信服务",
+            "real estate": "房地产",
+            "utilities": "公用事业",
+            "basic materials": "原材料",
+            "semiconductor": "半导体",
+            "software": "软件",
+            "internet": "互联网",
+            "banks": "银行",
+            "oil & gas": "油气",
+            "biotechnology": "生物科技",
+        }
+        lower = text.lower()
+        for key, cn in table.items():
+            if key in lower:
+                return cn
+        return text
+
+    def _describe_business_for_beginner(self, company: str, business: str, sector: str, industry: str) -> str:
+        source = (business or "").strip()
+        if not source:
+            return f"{company} 属于 {sector}/{industry} 板块，建议重点关注其营收增长与利润率变化。"
+        if re.search(r"[\u4e00-\u9fff]", source):
+            return source[:140]
+
+        lower = source.lower()
+        if any(k in lower for k in ["chip", "semiconductor", "gpu"]):
+            return f"{company} 主要做芯片/算力相关业务，属于科技与半导体方向。"
+        if any(k in lower for k in ["software", "cloud", "saas"]):
+            return f"{company} 主要做软件或云服务，核心看订阅增长和企业IT支出。"
+        if any(k in lower for k in ["bank", "lending", "insurance"]):
+            return f"{company} 属于金融业务，盈利通常受利率周期与资产质量影响。"
+        if any(k in lower for k in ["retail", "consumer", "store", "e-commerce"]):
+            return f"{company} 属于消费零售，主要看消费需求、同店销售和库存周转。"
+        if any(k in lower for k in ["drug", "biotech", "pharmaceutical", "medical"]):
+            return f"{company} 属于医药医疗方向，关键看产品管线、审批和商业化进度。"
+        if any(k in lower for k in ["oil", "gas", "energy"]):
+            return f"{company} 属于能源行业，收益通常受油气价格与供需变化影响。"
+
+        return f"{company} 属于 {sector}/{industry} 板块，核心业务可概括为：{source[:120]}。"
     
     def _extract_risks(self, top_picks: List) -> List[str]:
         """提取风险因素"""
@@ -373,6 +446,10 @@ def scan_for_opportunities(max_news: int = 100) -> Dict:
                 "brief_analysis": pick.get("brief_analysis", ""),
                 "recommend_reason": pick.get("recommend_reason", ""),
                 "evidence_news": pick.get("evidence_news", []),
+                "company_name": pick.get("company_name", pick["symbol"]),
+                "sector": pick.get("sector", ""),
+                "industry": pick.get("industry", ""),
+                "business": pick.get("business", ""),
             })
     
     return {
