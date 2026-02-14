@@ -45,3 +45,12 @@
 1. Spec 对应代码合并并可在本地运行。
 2. 新增/更新测试覆盖关键决策路径。
 3. README 更新包含新流程与运行方式。
+
+## Release Checklist
+- [x] Agent registry and new role agents integrated into runtime pipeline
+- [x] RSI/MACD/ATR and risk features wired into fetcher + decision path
+- [x] Risk gate includes geopolitical and Trump-related policy headlines
+- [x] Structured providers enabled (earnings + geopolitics monitors)
+- [x] Backtest script outputs markdown/json reports under `reports/`
+- [x] GitHub Actions includes backtest smoke step
+- [x] README and README_EN updated for rollout instructions

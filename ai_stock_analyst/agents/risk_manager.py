@@ -40,6 +40,12 @@ class RiskManager(BaseAgent):
         if any(keyword in joined_titles for keyword in event_keywords):
             triggers.append("检测到重大事件窗口")
 
+        geopolitics_score, geopolitics_hits = self._assess_geopolitical_risk(news_items)
+        if geopolitics_score >= 2:
+            triggers.append(f"地缘政治风险升温({geopolitics_score})")
+        if geopolitics_hits:
+            triggers.append("地缘政治关键词: " + ", ".join(geopolitics_hits[:4]))
+
         level = "LOW"
         if len(triggers) >= 3:
             level = "HIGH"
@@ -71,6 +77,32 @@ class RiskManager(BaseAgent):
                 "risk_level": level,
                 "triggers": triggers,
                 "max_position_size": max_position_size,
+                "geopolitics_risk_score": geopolitics_score,
+                "geopolitics_hits": geopolitics_hits,
             },
             risks=triggers,
         )
+
+    def _assess_geopolitical_risk(self, news_items):
+        titles = " ".join(item.get("title", "").lower() for item in news_items[:20])
+        weighted_terms = {
+            "trump": 1,
+            "tariff": 2,
+            "trade war": 2,
+            "sanction": 2,
+            "middle east": 2,
+            "iran": 1,
+            "china": 1,
+            "taiwan": 2,
+            "ukraine": 2,
+            "russia": 1,
+            "geopolitical": 2,
+            "shipping disruption": 2,
+        }
+        hits = []
+        score = 0
+        for term, weight in weighted_terms.items():
+            if term in titles:
+                hits.append(term)
+                score += weight
+        return score, hits

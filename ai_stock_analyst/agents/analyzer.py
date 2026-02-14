@@ -30,7 +30,17 @@ class StockAnalyzer:
             "bear": BearResearcher(),
             "risk": RiskManager(),
         }
+        self.agent_pipeline = ["technical", "anomaly", "fundamental", "news", "bull", "bear", "social", "risk"]
         self.portfolio_manager = PortfolioManager()
+
+    def register_agent(self, key: str, agent, append_pipeline: bool = True) -> None:
+        """注册新Agent，便于后续扩展/测试注入。"""
+        self.agents[key] = agent
+        if append_pipeline and key not in self.agent_pipeline:
+            self.agent_pipeline.append(key)
+
+    def list_agents(self) -> List[str]:
+        return list(self.agent_pipeline)
     
     def analyze(self, symbol: str, data: Dict) -> Dict:
         """
@@ -45,36 +55,26 @@ class StockAnalyzer:
         """
         analyses = []
         
-        # 技术面分析
-        if "price_data" in data:
-            tech_result = self.agents["technical"].analyze(data)
-            analyses.append(tech_result)
-            
-            anomaly_result = self.agents["anomaly"].analyze(data)
-            analyses.append(anomaly_result)
-        
-        # 基本面分析
-        if "price_data" in data:
-            fundamental_result = self.agents["fundamental"].analyze(data)
-            analyses.append(fundamental_result)
+        risk_result = None
+        for key in self.agent_pipeline:
+            if key in {"technical", "anomaly", "fundamental"} and "price_data" not in data:
+                continue
+            if key in {"news", "bull", "bear"} and not data.get("news"):
+                continue
+            if key == "social" and "social_data" not in data:
+                continue
 
-        # 新闻分析
-        if "news" in data and data["news"]:
-            news_result = self.agents["news"].analyze(data)
-            analyses.append(news_result)
+            agent = self.agents.get(key)
+            if not agent:
+                continue
+            result = agent.analyze(data)
+            analyses.append(result)
+            if key == "risk":
+                risk_result = result
 
-            bull_result = self.agents["bull"].analyze(data)
-            bear_result = self.agents["bear"].analyze(data)
-            analyses.extend([bull_result, bear_result])
-        
-        # 社媒分析
-        if "social_data" in data:
-            social_result = self.agents["social"].analyze(data)
-            analyses.append(social_result)
-
-        # 风险闸门分析（在最终决策前）
-        risk_result = self.agents["risk"].analyze(data)
-        analyses.append(risk_result)
+        if risk_result is None:
+            risk_result = self.agents["risk"].analyze(data)
+            analyses.append(risk_result)
         
         # 投资组合决策
         decision_data = {

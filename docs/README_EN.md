@@ -17,6 +17,8 @@
 | Module | Feature | Description |
 |--------|---------|-------------|
 | 🤖 AI Analysis | Decision Dashboard | Core conclusion + precise entry/exit points + multi-dimensional scoring |
+| 🧩 Multi-Agent | Role-based Reasoning | Technical + Fundamental + Bull + Bear + Risk Manager orchestration |
+| 🛡️ Risk Gate | Hard Risk Override | Downgrades BUY under volatility/event/geopolitical risk |
 | 📡 News | RSS Aggregation | Real-time news from Seeking Alpha, MarketWatch, CNBC, etc. |
 | 🐦 Social | Sentiment Monitor | Twitter/X and Reddit discussion sentiment analysis |
 | 🧠 LLM | Dual Model Support | Alibaba Bailian (primary) + Google Gemini (fallback) |
@@ -29,7 +31,7 @@
 - **SQLite** - Embedded database (zero config)
 - **FastAPI** - Web framework
 - **Alibaba Bailian / Google Gemini** - Large Language Models
-- **RSSHub** - RSS aggregation service
+- **Structured + RSS sources** - Fed/SEC/CFTC/IMF + market feeds + Google News monitors
 
 ---
 
@@ -116,10 +118,10 @@ cp .env.example .env
 # Edit .env and add your API keys
 
 # 4. Run analysis
-python -m src.main --stocks AAPL,TSLA
+python -m ai_stock_analyst.main --stocks AAPL,TSLA
 
 # 5. Start web interface (optional)
-python -m src.web
+python -m ai_stock_analyst.web.app
 # Open http://localhost:8000
 ```
 
@@ -144,13 +146,13 @@ docker-compose down
 
 ```
 ai-stock-analyst/
-├── src/
+├── ai_stock_analyst/
 │   ├── config/              # Configuration management
 │   ├── database/            # SQLite database
-│   ├── data/                # Stock data fetching (yfinance)
-│   ├── rss/                 # RSS news + social media scraping
+│   ├── data/                # Stock data fetching + indicators
+│   ├── rss/                 # RSS + structured event providers
 │   ├── llm/                 # LLM routing (Bailian+Gemini)
-│   ├── agents/              # AI analysis agent system
+│   ├── agents/              # Multi-agent analysis pipeline
 │   ├── notification/        # Notification push (multi-platform)
 │   └── main.py              # CLI entry point
 ├── .github/
@@ -168,6 +170,30 @@ ai-stock-analyst/
 ---
 
 ## 🔧 Detailed Configuration
+
+## 📐 Spec Workflow
+
+The repository includes a spec-driven execution scaffold:
+- `.specify/memory/constitution.md`
+- `specs/001-risk-aware-multi-agent-upgrade/spec.md`
+- `specs/001-risk-aware-multi-agent-upgrade/plan.md`
+- `specs/001-risk-aware-multi-agent-upgrade/tasks.md`
+
+Recommended order:
+1. Read constitution (hard constraints)
+2. Confirm spec requirements
+3. Execute by milestones in plan
+4. Track completion in tasks checklist
+
+## 🔄 Backtest Command
+
+```bash
+python scripts/backtest_strategy.py --symbols SPY,QQQ --period 2y --output-dir reports
+```
+
+Outputs:
+- `reports/backtest_*.md`
+- `reports/backtest_*.json`
 
 ### Environment Variables (.env file)
 

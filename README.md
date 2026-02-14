@@ -19,7 +19,8 @@
 | 🤖 AI分析 | 决策仪表盘 | 核心结论 + 精确买卖点位 + 多维度评分 |
 | 🧩 多Agent协作 | 研究员分工 | Technical + Fundamental + Bull + Bear + RiskManager 协同决策 |
 | 🛡️ 风控 | Risk Gate | 高波动/事件窗口/数据质量异常时自动降级 BUY 信号 |
-| 📡 新闻 | RSS聚合 | 实时获取Seeking Alpha、MarketWatch等财经新闻 |
+| 🌍 地缘政治 | 宏观事件风控 | 纳入地缘政治与Trump政策动态对美股冲击评估 |
+| 📡 新闻 | RSS+结构化事件 | SeekingAlpha/WSJ/CNBC + Fed/SEC/CFTC/IMF + Geopolitical监控 |
 | 🐦 社媒 | 情绪监控 | Twitter/X和Reddit讨论情绪分析 |
 | 🧠 LLM | 双模型支持 | 阿里云百炼 DeepSeek(主要) + Google Gemini(备用) |
 | 📱 推送 | 多渠道通知 | Telegram、钉钉、飞书、企业微信 |
@@ -31,7 +32,7 @@
 - **SQLite** - 嵌入式数据库（零配置）
 - **FastAPI** - Web框架
 - **阿里云百炼 / Google Gemini** - 大语言模型
-- **RSSHub** - RSS聚合服务
+- **RSS + Structured Providers** - RSS聚合与结构化事件源
 
 ---
 
@@ -209,6 +210,20 @@ ai-stock-analyst/
 - 风控闸门（Risk Gate）
 - 技术指标扩展（RSI/MACD/ATR）
 - 结构化事件源 + 回测报告
+
+---
+
+## 🔄 回测命令（Backtest）
+
+使用内置回测脚本快速评估策略表现：
+
+```bash
+python scripts/backtest_strategy.py --symbols SPY,QQQ --period 2y --output-dir reports
+```
+
+输出文件：
+- `reports/backtest_*.md`
+- `reports/backtest_*.json`
 
 ---
 

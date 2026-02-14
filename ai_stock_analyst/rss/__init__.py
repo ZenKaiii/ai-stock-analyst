@@ -3,7 +3,8 @@ RSS包初始化
 
 导出RSS相关类和函数
 """
-from .feed import RSSFetcher, NewsItem, fetch_news
+from .models import NewsItem
+from .feed import RSSFetcher, fetch_news
 from .social import SocialMediaFetcher, fetch_social
 
 __all__ = [

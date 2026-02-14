@@ -1,5 +1,6 @@
 from ai_stock_analyst.agents.base import AnalysisResult
 from ai_stock_analyst.agents.portfolio import PortfolioManager
+from ai_stock_analyst.agents.risk_manager import RiskManager
 
 
 def _result(name: str, signal: str, confidence: float = 0.7):
@@ -65,3 +66,25 @@ def test_buy_signal_kept_without_risk_triggered():
 
     assert result.signal == "BUY"
     assert result.indicators["risk_override"] is False
+
+
+def test_geopolitical_and_trump_headlines_raise_risk():
+    risk_manager = RiskManager()
+    result = risk_manager.analyze(
+        {
+            "price_data": {
+                "atr_pct": 1.5,
+                "volatility_20d": 1.2,
+                "change_percent": 0.8,
+                "data_quality": 1.0,
+            },
+            "news": [
+                {"title": "Trump signals new tariff policy and trade war stance"},
+                {"title": "Geopolitical risk rises amid Middle East shipping disruption"},
+            ],
+            "social_data": {"sentiment": {"bearish_pct": 55}},
+        }
+    )
+
+    assert result.indicators["geopolitics_risk_score"] >= 2
+    assert result.indicators["triggered"] is True

@@ -113,6 +113,13 @@ jobs:
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
         run: stock-analyze --portfolio
 
+      - name: Run backtest smoke
+        if: always()
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          python scripts/backtest_strategy.py --symbols SPY --period 6mo --output-dir reports
+
       - name: Upload analysis reports
         uses: actions/upload-artifact@v4
         if: always()
