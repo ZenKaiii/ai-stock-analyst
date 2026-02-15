@@ -32,7 +32,7 @@ def main():
     parser.add_argument("--type", type=str, default="full", choices=["quick", "full", "deep"])
     parser.add_argument("--no-notify", action="store_true", help="Disable notifications")
     parser.add_argument("--discover", action="store_true", help="Discover trending stocks from news")
-    parser.add_argument("--discover-universe-size", type=int, default=1500, help="Discovery: max universe size")
+    parser.add_argument("--discover-universe-size", type=int, default=0, help="Discovery: max universe size (0=all)")
     parser.add_argument("--discover-prefilter-size", type=int, default=120, help="Discovery: prefilter size")
     parser.add_argument("--discover-final-size", type=int, default=21, help="Discovery: final recommendation size")
     parser.add_argument("--discover-max-news", type=int, default=180, help="Discovery: max news items")
@@ -108,9 +108,10 @@ def main():
     
     if args.discover:
         logger.info("Discovering trending stocks from news...")
+        universe_size = 0 if args.discover_universe_size <= 0 else max(args.discover_universe_size, 200)
         result = scan_for_opportunities(
             max_news=max(args.discover_max_news, 50),
-            universe_size=max(args.discover_universe_size, 200),
+            universe_size=universe_size,
             prefilter_size=max(args.discover_prefilter_size, 30),
             final_size=max(args.discover_final_size, 5),
         )

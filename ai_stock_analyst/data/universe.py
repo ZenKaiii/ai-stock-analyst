@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import requests
 import yfinance as yf
@@ -15,6 +15,14 @@ logger = logging.getLogger(__name__)
 NASDAQ_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/symdir/nasdaqlisted.txt"
 OTHER_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt"
 SYMBOL_PATTERN = re.compile(r"^[A-Z][A-Z\.\-]{0,5}$")
+EXCHANGE_LABELS = {
+    "Q": "NASDAQ",
+    "N": "NYSE",
+    "A": "NYSE American",
+    "P": "NYSE Arca",
+    "Z": "Cboe BZX",
+    "V": "IEX",
+}
 
 # Fallback universe in case network source is unavailable.
 FALLBACK_UNIVERSE = [
@@ -25,18 +33,61 @@ FALLBACK_UNIVERSE = [
 ]
 
 
-def load_us_equity_universe(max_symbols: int = 1800) -> List[str]:
-    """加载美股候选池（NASDAQ Trader 官方符号目录）。"""
-    symbols = set()
-    symbols.update(_load_nasdaq_listed())
-    symbols.update(_load_other_listed())
+def load_us_equity_universe(max_symbols: int = 1800, include_etf: bool = False) -> List[str]:
+    """加载美股候选池（NASDAQ + NYSE + NYSE American + Arca 等）。"""
+    symbols, _ = load_us_equity_universe_with_stats(max_symbols=max_symbols, include_etf=include_etf)
+    return symbols
 
-    cleaned = sorted(_normalize_symbol(s) for s in symbols if _is_valid_symbol(s))
-    cleaned = [s for s in cleaned if s]
-    if not cleaned:
+
+def load_us_equity_universe_with_stats(max_symbols: int = 1800, include_etf: bool = False) -> Tuple[List[str], Dict[str, Any]]:
+    """加载美股候选池并返回统计信息。max_symbols<=0 表示不截断。"""
+    rows = _load_nasdaq_listed_rows() + _load_other_listed_rows()
+    deduped: Dict[str, Dict[str, str]] = {}
+
+    for row in rows:
+        symbol = _normalize_symbol(str(row.get("symbol", "")))
+        if not _is_valid_symbol(symbol):
+            continue
+        etf_flag = str(row.get("etf", "N")).upper() == "Y"
+        if etf_flag and not include_etf:
+            continue
+
+        exchange = str(row.get("exchange", "Q")).upper() or "Q"
+        if symbol not in deduped:
+            deduped[symbol] = {
+                "exchange": exchange,
+                "etf": "Y" if etf_flag else "N",
+            }
+
+    if not deduped:
         logger.warning("Failed to load NASDAQ Trader universe. Using fallback universe.")
-        cleaned = FALLBACK_UNIVERSE.copy()
-    return cleaned[:max_symbols]
+        fallback = sorted(FALLBACK_UNIVERSE)
+        if max_symbols > 0:
+            fallback = fallback[:max_symbols]
+        return fallback, {
+            "raw_rows": 0,
+            "selected_universe": len(fallback),
+            "include_etf": include_etf,
+            "exchange_breakdown": {"Fallback Mixed": len(fallback)},
+        }
+
+    symbols = sorted(deduped.keys())
+    if max_symbols > 0:
+        symbols = symbols[:max_symbols]
+
+    exchange_breakdown: Dict[str, int] = {}
+    for symbol in symbols:
+        code = deduped.get(symbol, {}).get("exchange", "")
+        label = EXCHANGE_LABELS.get(code, f"Exchange-{code or 'Unknown'}")
+        exchange_breakdown[label] = exchange_breakdown.get(label, 0) + 1
+
+    stats = {
+        "raw_rows": len(rows),
+        "selected_universe": len(symbols),
+        "include_etf": include_etf,
+        "exchange_breakdown": exchange_breakdown,
+    }
+    return symbols, stats
 
 
 def prefilter_universe(
@@ -116,23 +167,33 @@ def prefilter_universe(
     return prefiltered[:top_k]
 
 
-def _load_nasdaq_listed() -> List[str]:
-    return _load_pipe_text_symbols(
+def _load_nasdaq_listed_rows() -> List[Dict[str, str]]:
+    return _load_pipe_text_rows(
         NASDAQ_LISTED_URL,
         symbol_keys=("Symbol",),
+        exchange_keys=(),
         extra_filter=lambda row: row.get("Test Issue", "N") == "N",
+        default_exchange="Q",
     )
 
 
-def _load_other_listed() -> List[str]:
-    return _load_pipe_text_symbols(
+def _load_other_listed_rows() -> List[Dict[str, str]]:
+    return _load_pipe_text_rows(
         OTHER_LISTED_URL,
         symbol_keys=("NASDAQ Symbol", "CQS Symbol", "ACT Symbol"),
+        exchange_keys=("Exchange",),
         extra_filter=lambda row: row.get("Test Issue", "N") == "N",
+        default_exchange="",
     )
 
 
-def _load_pipe_text_symbols(url: str, symbol_keys: Tuple[str, ...], extra_filter=None) -> List[str]:
+def _load_pipe_text_rows(
+    url: str,
+    symbol_keys: Tuple[str, ...],
+    exchange_keys: Tuple[str, ...],
+    extra_filter=None,
+    default_exchange: str = "",
+) -> List[Dict[str, str]]:
     try:
         resp = requests.get(url, timeout=15)
         resp.raise_for_status()
@@ -145,7 +206,7 @@ def _load_pipe_text_symbols(url: str, symbol_keys: Tuple[str, ...], extra_filter
         return []
 
     header = lines[0].split("|")
-    out = []
+    out: List[Dict[str, str]] = []
     for line in lines[1:]:
         if line.startswith("File Creation Time"):
             continue
@@ -161,8 +222,21 @@ def _load_pipe_text_symbols(url: str, symbol_keys: Tuple[str, ...], extra_filter
                 symbol = row.get(key, "").strip()
                 if symbol:
                     break
-        if symbol:
-            out.append(symbol)
+        if not symbol:
+            continue
+        exchange = default_exchange
+        for key in exchange_keys:
+            value = row.get(key, "").strip()
+            if value:
+                exchange = value
+                break
+        out.append(
+            {
+                "symbol": symbol,
+                "exchange": exchange,
+                "etf": row.get("ETF", row.get("Etf", "N")).strip() or "N",
+            }
+        )
     return out
 
 

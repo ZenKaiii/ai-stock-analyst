@@ -67,6 +67,8 @@ class DingTalkNotifier(BaseNotifier):
         text = re.sub(r"^[ \t]*•\s*", "- ", text, flags=re.MULTILINE)
         text = re.sub(r"^[ \t]*[-*][ \t]*[•·*-][ \t]*", "- ", text, flags=re.MULTILINE)
         text = re.sub(r"^[ \t]*[•·][ \t]*[•·][ \t]*", "- ", text, flags=re.MULTILINE)
+        text = re.sub(r"(?<=\S)\*(?=[:：])", "", text)
+        text = text.replace("*", "")
         text = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", text)
         # 避免过深标题在钉钉端显示不稳定
         text = re.sub(r"^####\s+", "### ", text, flags=re.MULTILINE)
@@ -101,6 +103,8 @@ class DingTalkNotifier(BaseNotifier):
         # 钉钉 markdown 子集对粗体/行内代码在列表里渲染不稳定，统一降级为纯文本。
         text = re.sub(r"\*\*([^*\n]+)\*\*", r"\1", text)
         text = re.sub(r"__([^_\n]+)__", r"\1", text)
+        text = re.sub(r"(?<!\*)\*([^\n*]+)\*(?!\*)", r"\1", text)
+        text = re.sub(r"(?<!_)_([^\n_]+)_(?!_)", r"\1", text)
         text = text.replace("`", "")
         return text
 
@@ -169,7 +173,7 @@ class DingTalkNotifier(BaseNotifier):
             if title:
                 brief = summary if summary else "暂无摘要，建议查看原文。"
                 impact = self._infer_news_impact(title, summary)
-                news_lines.append(f"{idx}. **[{source}]** {title}")
+                news_lines.append(f"{idx}. [{source}] {title}")
                 news_lines.append(f"   - 概要: {brief}")
                 news_lines.append(f"   - 解读: {impact}")
                 if link:
@@ -202,14 +206,14 @@ class DingTalkNotifier(BaseNotifier):
             f"## 📱 {symbol} 决策卡（移动版）\n\n"
             f"> {rationale}\n\n"
             f"### ① {signal_icon} 结论\n"
-            f"- **交易信号**: `{signal}`\n"
-            f"- **综合评分**: `{score_100:.1f}/100`（{score_desc}）\n"
-            f"- **置信度**: `{confidence}%`\n"
-            f"- **建议仓位**: `{decision.get('position_size', '5-10%')}`\n\n"
+            f"- 交易信号: {signal}\n"
+            f"- 综合评分: {score_100:.1f}/100（{score_desc}）\n"
+            f"- 置信度: {confidence}%\n"
+            f"- 建议仓位: {decision.get('position_size', '5-10%')}\n\n"
             f"### ② 💰 交易计划\n"
-            f"- **入场价**: `${decision.get('entry_price', 'N/A')}`\n"
-            f"- **止损价**: `${decision.get('stop_loss', 'N/A')}`\n"
-            f"- **目标价**: `${decision.get('target_price', 'N/A')}`\n\n"
+            f"- 入场价: ${decision.get('entry_price', 'N/A')}\n"
+            f"- 止损价: ${decision.get('stop_loss', 'N/A')}\n"
+            f"- 目标价: ${decision.get('target_price', 'N/A')}\n\n"
             f"### ③ 📊 技术面\n"
             f"{tech_block}\n\n"
             f"### ④ 🌍 宏观环境\n"
@@ -223,12 +227,12 @@ class DingTalkNotifier(BaseNotifier):
             f"### ⑧ 🚨 风险提示\n"
             f"{risk_block}\n\n"
             f"### ⑨ 📚 小白指标速读\n"
-            f"- **RSI**: >70 常见为短期偏热，<30 常见为短期偏弱。\n"
-            f"- **MACD**: 柱线转正通常代表动能改善，转负代表动能走弱。\n"
-            f"- **ATR%**: 越高代表波动越大，仓位应越小。\n\n"
+            f"- RSI: >70 常见为短期偏热，<30 常见为短期偏弱。\n"
+            f"- MACD: 柱线转正通常代表动能改善，转负代表动能走弱。\n"
+            f"- ATR%: 越高代表波动越大，仓位应越小。\n\n"
             f"### ⑩ ✅ 行动建议\n"
-            f"- **空仓用户**: {action_for_new}\n"
-            f"- **持仓用户**: {action_for_holding}\n\n"
+            f"- 空仓用户: {action_for_new}\n"
+            f"- 持仓用户: {action_for_holding}\n\n"
             f"> AI Stock Analyst"
         )
 

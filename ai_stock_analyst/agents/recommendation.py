@@ -6,7 +6,11 @@ from typing import Dict, List
 
 from ai_stock_analyst.agents.base import BaseAgent, AnalysisResult
 from ai_stock_analyst.rss import fetch_news
-from ai_stock_analyst.data import fetch_stock_price, load_us_equity_universe, prefilter_universe
+from ai_stock_analyst.data import (
+    fetch_stock_price,
+    load_us_equity_universe_with_stats,
+    prefilter_universe,
+)
 
 
 POSITIVE_KEYWORDS = [
@@ -21,6 +25,22 @@ NEGATIVE_KEYWORDS = [
     "decline", "crash", "plunge", "drop", "loss", "lawsuit", "investigation",
     "下调", "减持", "卖出", "不及预期", "利空", "亏损", "诉讼", "调查"
 ]
+
+SOURCE_QUALITY_WEIGHTS = {
+    "WSJ": 0.95,
+    "CNBC": 0.85,
+    "MarketWatch": 0.80,
+    "Seeking Alpha": 0.78,
+    "Yahoo Finance": 0.72,
+    "New York Times Business": 0.88,
+    "New York Times Economy": 0.88,
+    "SEC Press Releases": 0.96,
+    "Federal Reserve": 0.96,
+    "Federal Reserve Monetary Policy": 0.96,
+    "CFTC Press Releases": 0.95,
+    "Investing.com Markets": 0.65,
+    "News Minimalist": 0.68,
+}
 
 # Known major US stock tickers for better matching
 KNOWN_TICKERS = {
@@ -87,8 +107,8 @@ class RecommendationAgent(BaseAgent):
             reverse=True
         )
         
-        # 取Top 5推荐
-        top_picks = sorted_stocks[:5]
+        top_k = max(int(data.get("top_k", 21) or 21), 5)
+        top_picks = sorted_stocks[:top_k]
         
         if not top_picks:
             return AnalysisResult(
@@ -104,11 +124,12 @@ class RecommendationAgent(BaseAgent):
         recommendation_text = self._build_recommendation_text(top_picks)
         
         bullish_count = sum(1 for _, s in top_picks if s["signal"] == "BUY")
+        vote_base = max(1, min(top_k, 21))
         
         return AnalysisResult(
             agent_name=self.name,
             signal="BUY" if bullish_count >= 3 else "HOLD",
-            confidence=min(0.7, bullish_count / 5),
+            confidence=min(0.85, bullish_count / vote_base),
             reasoning=recommendation_text,
             indicators={
                 "top_picks": [
@@ -209,8 +230,8 @@ class RecommendationAgent(BaseAgent):
         return stock_signals
     
     def _build_recommendation_text(self, top_picks: List) -> str:
-        lines = ["以下为候选股票的简要分析、新闻依据和推荐原因：", ""]
-        
+        lines = ["## 📈 热门股票发现", "", "以下为候选股票的简要分析、新闻依据和推荐原因：", ""]
+
         for idx, (symbol, data) in enumerate(top_picks, start=1):
             emoji = {"BUY": "🟢", "SELL": "🔴", "HOLD": "🟡"}.get(data["signal"], "⚪")
             evidence_lines = data.get("evidence_news", [])[:2]
@@ -219,17 +240,24 @@ class RecommendationAgent(BaseAgent):
             sector = self._to_cn_label(data.get("sector") or "未知板块")
             industry = self._to_cn_label(data.get("industry") or "未知行业")
             business = self._describe_business_for_beginner(company, data.get("business", ""), sector, industry)
-            lines.append(
-                f"### {idx}. {emoji} {symbol} ({company})\n"
-                f"- **结论**: `{data['signal']}`\n"
-                f"- **公司/行业**: {sector} / {industry}\n"
-                f"- **公司做什么**: {business}\n"
-                f"- **简要分析**: {data.get('brief_analysis', '暂无')}\n"
-                f"- **推荐原因**: {data.get('recommend_reason', '暂无')}\n"
-                f"- **看涨评分**: `{data['bullish_score']:.2f}` | **综合评分**: `{data.get('composite_score', data['bullish_score']):.2f}`\n"
-                f"- **新闻依据**:\n{evidence_md}\n\n"
+            lines.extend(
+                [
+                    f"### {idx}. {emoji} {symbol} ({company})",
+                    f"- 结论: {data['signal']}",
+                    f"- 公司/行业: {sector} / {industry}",
+                    f"- 公司做什么: {business}",
+                    f"- 简要分析: {data.get('brief_analysis', '暂无')}",
+                    f"- 推荐原因: {data.get('recommend_reason', '暂无')}",
+                    (
+                        f"- 看涨评分: {data['bullish_score']:.2f} | 综合评分: "
+                        f"{data.get('composite_score', data['bullish_score']):.2f}"
+                    ),
+                    "- 新闻依据:",
+                    evidence_md,
+                    "",
+                ]
             )
-        
+
         return "\n".join(lines)
 
     def _enrich_with_market_quality(self, stock_signals: Dict) -> Dict:
@@ -402,7 +430,7 @@ class RecommendationAgent(BaseAgent):
 
 def scan_for_opportunities(
     max_news: int = 180,
-    universe_size: int = 1500,
+    universe_size: int = 0,
     prefilter_size: int = 120,
     final_size: int = 21,
 ) -> Dict:
@@ -429,8 +457,13 @@ def scan_for_opportunities(
     
     logger.info(f"获取到 {len(all_news)} 条新闻，开始构建美股候选池...")
 
-    universe = load_us_equity_universe(max_symbols=max(universe_size, 200))
-    logger.info(f"候选池加载完成，共 {len(universe)} 只")
+    normalized_universe_size = 0 if universe_size <= 0 else max(universe_size, 200)
+    universe, universe_meta = load_us_equity_universe_with_stats(
+        max_symbols=normalized_universe_size,
+        include_etf=False,
+    )
+    exchange_breakdown = universe_meta.get("exchange_breakdown", {})
+    logger.info(f"候选池加载完成，共 {len(universe)} 只，交易所分布: {exchange_breakdown}")
 
     prefiltered = prefilter_universe(universe, top_k=max(prefilter_size, 30))
     logger.info(f"预筛完成，共 {len(prefiltered)} 只")
@@ -443,7 +476,8 @@ def scan_for_opportunities(
             "all_news": [
                 {"title": n.title, "source": n.source, "summary": n.summary, "link": n.link}
                 for n in all_news
-            ]
+            ],
+            "top_k": max(final_size, 21),
         }
         result = agent.analyze(news_data)
         recommendations = []
@@ -475,6 +509,7 @@ def scan_for_opportunities(
                 "prefiltered": 0,
                 "scored": len(recommendations),
                 "final_count": len(recommendations),
+                "exchange_breakdown": exchange_breakdown,
             },
         }
 
@@ -493,6 +528,7 @@ def scan_for_opportunities(
 
         symbol_news = _match_news_for_symbol(symbol, news_pool, max_items=4)
         news_sentiment = _calc_news_sentiment(symbol_news)
+        source_quality = _calc_source_quality(symbol_news)
         technical = _calc_technical_score(price)
         fundamentals = _calc_fundamental_score(price)
         prefilter_norm = _normalize_prefilter_score(float(row.get("prefilter_score", 0)))
@@ -500,10 +536,11 @@ def scan_for_opportunities(
         risk_penalty = 0.08 if atr_pct >= 6 else 0.0
 
         composite = (
-            technical * 0.36
-            + fundamentals * 0.24
-            + news_sentiment * 0.20
-            + prefilter_norm * 0.20
+            technical * 0.33
+            + fundamentals * 0.22
+            + news_sentiment * 0.18
+            + prefilter_norm * 0.17
+            + source_quality * 0.10
             - risk_penalty
         )
         composite = max(0.0, min(1.0, composite))
@@ -528,7 +565,8 @@ def scan_for_opportunities(
 
         recommend_reason = (
             f"预筛得分{row.get('prefilter_score', 0):.2f}，技术得分{technical:.2f}，"
-            f"财报稳定性得分{fundamentals:.2f}，新闻得分{news_sentiment:.2f}。"
+            f"财报稳定性得分{fundamentals:.2f}，新闻得分{news_sentiment:.2f}，"
+            f"新闻源质量得分{source_quality:.2f}。"
         )
         brief = (
             f"趋势{price.get('trend', 'NEUTRAL')}，"
@@ -555,11 +593,12 @@ def scan_for_opportunities(
                 "entry_price": price.get("current_price", 0),
                 "target_price": round(float(price.get("current_price", 0) or 0) * 1.08, 2),
                 "prefilter_score": round(float(row.get("prefilter_score", 0)), 2),
+                "source_quality": round(source_quality, 2),
             }
         )
 
     scored.sort(key=lambda x: x["composite_score"], reverse=True)
-    final_count = min(max(final_size, 5), len(scored))
+    final_count = min(max(final_size, 21), len(scored))
     recommendations = scored[:final_count]
     top_pick = recommendations[0] if recommendations else None
     watchlist = recommendations[1:21] if len(recommendations) > 1 else []
@@ -572,8 +611,11 @@ def scan_for_opportunities(
         f"- 通过预筛: {len(prefiltered)} 只",
         f"- 进入评分: {len(scored)} 只",
         f"- 最终推荐: {1 if top_pick else 0} 只 Top1 + {len(watchlist)} 只备选",
-        "",
+        "- 交易所覆盖:",
     ]
+    for ex, cnt in sorted(exchange_breakdown.items(), key=lambda x: x[1], reverse=True)[:6]:
+        summary_lines.append(f"  - {ex}: {cnt} 只")
+    summary_lines.append("")
 
     if top_pick:
         summary_lines.extend(
@@ -582,6 +624,7 @@ def scan_for_opportunities(
                 f"- 股票: {top_pick['symbol']} ({top_pick['company_name']})",
                 f"- 结论: {top_pick['signal']} | 综合评分: {top_pick['score_100']}/100",
                 f"- 入场参考: ${top_pick['entry_price']} | 目标参考: ${top_pick['target_price']}",
+                f"- 新闻源质量: {top_pick.get('source_quality', 0.5):.2f}",
                 f"- 推荐原因: {top_pick['recommend_reason']}",
                 "",
             ]
@@ -592,7 +635,8 @@ def scan_for_opportunities(
         for idx, item in enumerate(watchlist, start=1):
             summary_lines.append(
                 f"{idx}. {item['symbol']}({item['company_name']}) | {item['signal']} | "
-                f"{item['score_100']}/100 | 入场${item['entry_price']} 目标${item['target_price']}"
+                f"{item['score_100']}/100 | 质量{item.get('source_quality', 0.5):.2f} | "
+                f"入场${item['entry_price']} 目标${item['target_price']}"
             )
 
     summary = "\n".join(summary_lines)
@@ -610,6 +654,7 @@ def scan_for_opportunities(
             "prefiltered": len(prefiltered),
             "scored": len(scored),
             "final_count": len(recommendations),
+            "exchange_breakdown": exchange_breakdown,
         },
     }
 
@@ -641,6 +686,20 @@ def _calc_news_sentiment(news_items: List[Dict]) -> float:
         else:
             vals.append(pos / (pos + neg))
     return max(0.0, min(1.0, sum(vals) / len(vals)))
+
+
+def _calc_source_quality(news_items: List[Dict]) -> float:
+    if not news_items:
+        return 0.45
+    source_scores = []
+    unique_sources = set()
+    for item in news_items:
+        source = str(item.get("source", "")).strip()
+        unique_sources.add(source)
+        source_scores.append(SOURCE_QUALITY_WEIGHTS.get(source, 0.6))
+    avg_score = sum(source_scores) / len(source_scores)
+    diversity_bonus = min(len(unique_sources) / 4, 1.0) * 0.2
+    return max(0.0, min(1.0, avg_score * 0.8 + diversity_bonus))
 
 
 def _calc_technical_score(price: Dict) -> float:

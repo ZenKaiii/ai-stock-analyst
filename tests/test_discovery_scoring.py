@@ -1,6 +1,7 @@
 from ai_stock_analyst.agents.recommendation import (
     _calc_fundamental_score,
     _calc_news_sentiment,
+    _calc_source_quality,
     _calc_technical_score,
     _normalize_prefilter_score,
 )
@@ -43,3 +44,20 @@ def test_fundamental_score_higher_for_growth_balance_sheet():
         }
     )
     assert strong > weak
+
+
+def test_source_quality_prefers_high_quality_diversified_sources():
+    high_quality = _calc_source_quality(
+        [
+            {"source": "WSJ"},
+            {"source": "SEC Press Releases"},
+            {"source": "Federal Reserve"},
+        ]
+    )
+    low_quality = _calc_source_quality(
+        [
+            {"source": "Unknown Blog"},
+            {"source": "Unknown Blog"},
+        ]
+    )
+    assert high_quality > low_quality

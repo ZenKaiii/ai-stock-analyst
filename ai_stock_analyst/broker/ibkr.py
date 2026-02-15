@@ -75,6 +75,13 @@ def _fetch_with_cpapi(account: Optional[str]) -> List[Dict]:
     verify_ssl = _read_bool(None, "IBKR_CPAPI_VERIFY_SSL", False)
     timeout = _read_int(None, "IBKR_CPAPI_TIMEOUT", 12)
     cookie = _read_str(None, "IBKR_CPAPI_COOKIE", "")
+    if os.getenv("GITHUB_ACTIONS", "").lower() == "true":
+        runner_env = os.getenv("RUNNER_ENVIRONMENT", "")
+        if runner_env == "github-hosted" and ("localhost" in base_url or "127.0.0.1" in base_url):
+            raise RuntimeError(
+                "CPAPI base URL points to localhost on github-hosted runner. "
+                "Use self-hosted runner + Client Portal Gateway."
+            )
 
     session = requests.Session()
     if cookie:

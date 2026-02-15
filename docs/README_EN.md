@@ -19,7 +19,7 @@
 | 🤖 AI Analysis | Decision Dashboard | Core conclusion + precise entry/exit points + multi-dimensional scoring |
 | 🧩 Multi-Agent | Role-based Reasoning | Macro + Technical + Liquidity + Fundamental + Bull/Bear + Risk orchestration |
 | 🛡️ Risk Gate | Hard Risk Override | Downgrades BUY under volatility/event/geopolitical risk |
-| 📡 News | RSS Aggregation | Real-time news from Seeking Alpha, MarketWatch, CNBC, etc. |
+| 📡 News | RSS + Structured Sources | Seeking Alpha/WSJ/CNBC/NYT/Investing/News Minimalist + Fed/SEC/CFTC/IMF/CISA |
 | 🔎 Discovery | Universe Scan | Market-wide prefilter + scoring, outputs Top1 + 20 watchlist |
 | 🐦 Social | Sentiment Monitor | Twitter/X and Reddit discussion sentiment analysis |
 | 🧠 LLM | Dual Model Support | Alibaba Bailian (primary) + Google Gemini (fallback) |
@@ -201,6 +201,9 @@ The repository includes a spec-driven execution scaffold:
 - `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/spec.md`
 - `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/plan.md`
 - `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/tasks.md`
+- `specs/005-universe-news-ibkr-hosted-feasibility/spec.md`
+- `specs/005-universe-news-ibkr-hosted-feasibility/plan.md`
+- `specs/005-universe-news-ibkr-hosted-feasibility/tasks.md`
 
 Recommended order:
 1. Read constitution (hard constraints)
@@ -222,7 +225,7 @@ Outputs:
 
 ```bash
 stock-analyze --discover \
-  --discover-universe-size 1500 \
+  --discover-universe-size 0 \
   --discover-prefilter-size 120 \
   --discover-final-size 21 \
   --discover-max-news 180
@@ -230,6 +233,7 @@ stock-analyze --discover \
 
 Outputs include:
 - scan statistics (scanned/prefiltered/scored/final)
+- exchange coverage stats (NASDAQ/NYSE/NYSE American/Arca etc.)
 - Top1 recommendation
 - 20-symbol watchlist
 
@@ -270,6 +274,7 @@ Meaning:
 GitHub Actions note:
 - Workflow supports `mode=ibkr_portfolio` (sync + analyze).
 - Workflow uses strict IBKR sync (`--strict-ibkr`): job fails fast when sync fails.
+- Workflow now fails fast for `cpapi + github-hosted + localhost` to avoid misleading runs.
 - On GitHub-hosted runners, `127.0.0.1` is the runner itself, not your local machine.
 - For reliable IBKR sync in CI, use a self-hosted runner near your TWS/Gateway or CP Gateway.
 
@@ -278,6 +283,10 @@ IBKR API onboarding for beginners:
 - CPAPI also does not use a simple permanent API-key flow for retail; it requires CP Gateway and authenticated session handling.
 - For web/mobile-only users (no TWS), CPAPI + self-hosted runner is the practical path.
 - The codebase now supports `IBKR_API_MODE=cpapi` for holdings sync.
+
+Feasibility conclusion:
+- `github-hosted runner + web/mobile-only + localhost CP Gateway`: not feasible.
+- `self-hosted runner + CP Gateway`: feasible and recommended.
 
 Reference implementation notes from `thetagang`:
 - Repo: <https://github.com/brndnmtthws/thetagang>

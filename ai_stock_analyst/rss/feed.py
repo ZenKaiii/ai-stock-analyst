@@ -74,6 +74,31 @@ class RSSFetcher:
             "name": "IMF News",
             "priority": 12,
         },
+        "nytimes_business": {
+            "url": "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml",
+            "name": "New York Times Business",
+            "priority": 13,
+        },
+        "nytimes_economy": {
+            "url": "https://rss.nytimes.com/services/xml/rss/nyt/Economy.xml",
+            "name": "New York Times Economy",
+            "priority": 14,
+        },
+        "investing_markets": {
+            "url": "https://www.investing.com/rss/news_25.rss",
+            "name": "Investing.com Markets",
+            "priority": 15,
+        },
+        "news_minimalist": {
+            "url": "https://rss.beehiiv.com/feeds/4aF2pGVAEN.xml",
+            "name": "News Minimalist",
+            "priority": 16,
+        },
+        "cisa_alerts": {
+            "url": "https://www.cisa.gov/news.xml",
+            "name": "CISA Alerts",
+            "priority": 17,
+        },
     }
 
     def __init__(self):
@@ -107,11 +132,17 @@ class RSSFetcher:
                 if published and published < datetime.now() - timedelta(days=5):
                     continue
 
+                summary_text = entry.get("summary", "")
+                if source_name == "News Minimalist":
+                    summary_text = self._clean_newsminimalist_summary(summary_text)
+                else:
+                    summary_text = self._clean_html(summary_text)
+
                 item = NewsItem(
                     title=entry.get("title", ""),
                     link=entry.get("link", ""),
                     published=published or datetime.now(),
-                    summary=self._clean_html(entry.get("summary", "")),
+                    summary=summary_text,
                     source=source_name,
                 )
                 items.append(item)
@@ -199,6 +230,14 @@ class RSSFetcher:
     def _clean_html(self, html: str) -> str:
         clean = re.sub("<.*?>", "", html)
         return clean.strip()[:500]
+
+    def _clean_newsminimalist_summary(self, html: str) -> str:
+        text = self._clean_html(html)
+        scored = re.findall(r"\[(\d+\.\d)\]\s*([^—\n]{8,180})", text)
+        if not scored:
+            return text
+        parts = [f"[{score}] {title.strip()}" for score, title in scored[:3]]
+        return "；".join(parts)[:500]
 
 
 def fetch_news(symbol: Optional[str] = None) -> List[NewsItem]:

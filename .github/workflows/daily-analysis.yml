@@ -100,7 +100,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
           FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-          DISCOVER_UNIVERSE_SIZE: ${{ vars.DISCOVER_UNIVERSE_SIZE || '1500' }}
+          DISCOVER_UNIVERSE_SIZE: ${{ vars.DISCOVER_UNIVERSE_SIZE || '3200' }}
           DISCOVER_PREFILTER_SIZE: ${{ vars.DISCOVER_PREFILTER_SIZE || '120' }}
           DISCOVER_FINAL_SIZE: ${{ vars.DISCOVER_FINAL_SIZE || '21' }}
           DISCOVER_MAX_NEWS: ${{ vars.DISCOVER_MAX_NEWS || '180' }}
@@ -142,6 +142,12 @@ jobs:
           IBKR_CPAPI_VERIFY_SSL: ${{ secrets.IBKR_CPAPI_VERIFY_SSL || vars.IBKR_CPAPI_VERIFY_SSL || 'false' }}
           IBKR_CPAPI_TIMEOUT: ${{ secrets.IBKR_CPAPI_TIMEOUT || vars.IBKR_CPAPI_TIMEOUT || '12' }}
         run: |
+          if [ "${IBKR_API_MODE}" = "cpapi" ]; then
+            if [ "${RUNNER_ENVIRONMENT}" = "github-hosted" ] && [[ "${IBKR_CPAPI_BASE_URL}" == *"localhost"* || "${IBKR_CPAPI_BASE_URL}" == *"127.0.0.1"* ]]; then
+              echo "::error::IBKR cpapi mode on github-hosted runner cannot reach localhost gateway. Please use self-hosted runner + Client Portal Gateway."
+              exit 2
+            fi
+          fi
           if [ "${IBKR_API_MODE}" != "cpapi" ]; then
             pip install ib_async
           fi

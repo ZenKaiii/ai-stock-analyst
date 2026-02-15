@@ -20,7 +20,7 @@
 | 🧩 多Agent协作 | 研究员分工 | Macro + Technical + Liquidity + Fundamental + Bull/Bear + Risk 协同决策 |
 | 🛡️ 风控 | Risk Gate | 高波动/事件窗口/数据质量异常时自动降级 BUY 信号 |
 | 🌍 地缘政治 | 宏观事件风控 | 纳入地缘政治与Trump政策动态对美股冲击评估 |
-| 📡 新闻 | RSS+结构化事件 | SeekingAlpha/WSJ/CNBC + Fed/SEC/CFTC/IMF + Geopolitical监控 |
+| 📡 新闻 | RSS+结构化事件 | SeekingAlpha/WSJ/CNBC/NYT/Investing/NewsMinimalist + Fed/SEC/CFTC/IMF/CISA |
 | 🐦 社媒 | 情绪监控 | Twitter/X和Reddit讨论情绪分析 |
 | 🧠 LLM | 双模型支持 | 阿里云百炼 DeepSeek(主要) + Google Gemini(备用) |
 | 📱 推送 | 多渠道通知 | Telegram、钉钉、飞书、企业微信 |
@@ -219,6 +219,9 @@ ai-stock-analyst/
 - `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/spec.md`
 - `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/plan.md`
 - `specs/004-dingtalk-universe-discovery-and-ibkr-playbook/tasks.md`
+- `specs/005-universe-news-ibkr-hosted-feasibility/spec.md`
+- `specs/005-universe-news-ibkr-hosted-feasibility/plan.md`
+- `specs/005-universe-news-ibkr-hosted-feasibility/tasks.md`
 
 ### 推荐执行顺序
 
@@ -337,7 +340,7 @@ stock-analyze --discover
 
 # 可调参数（全市场扫描）
 stock-analyze --discover \
-  --discover-universe-size 1500 \
+  --discover-universe-size 0 \
   --discover-prefilter-size 120 \
   --discover-final-size 21 \
   --discover-max-news 180
@@ -355,10 +358,10 @@ stock-analyze --discover \
 ```
 
 **功能说明：**
-- 扫描美股候选池（NASDAQ Trader 符号目录）+ RSS 新闻源
+- 扫描美股候选池（NASDAQ + NYSE + NYSE American + Arca 等）+ RSS 新闻源
 - 初筛：价格/流动性/动量（预筛得分）
-- 评分：技术面 + 财报稳定性 + 新闻解读 + 预筛分
-- 输出：Top1 推荐 + 20只备选（含扫描统计）
+- 评分：技术面 + 财报稳定性 + 新闻解读 + 预筛分 + 新闻源质量分
+- 输出：Top1 推荐 + 20只备选（含扫描/初筛/评分/交易所覆盖统计）
 - 每只候选股输出：公司做什么、行业/板块、新闻事件概述、为什么利好/利空、入场/目标参考
 
 ---
@@ -455,6 +458,7 @@ GitHub Actions 说明：
 - workflow 已新增 `mode=ibkr_portfolio`，会执行“同步持仓 + 直接分析”。
 - 需要在仓库 Secrets 配置 `IBKR_API_MODE` 及对应参数（socket 或 cpapi）。
 - workflow 现已启用严格模式：若 IBKR 同步失败会直接失败，便于排查配置问题。
+- workflow 新增前置校验：`IBKR_API_MODE=cpapi` 且 `IBKR_CPAPI_BASE_URL` 指向 `localhost/127.0.0.1` 时，`github-hosted runner` 会直接失败并提示改用 self-hosted runner。
 - 若使用 GitHub 官方托管 runner，`127.0.0.1` 指向的是 runner 自己，不是你本地电脑。要成功连接 IBKR，通常需要：
   1. 自建 `self-hosted runner`（与你 TWS/Gateway 或 CP Gateway 同机/同网段），或
   2. 可公网访问且安全加固的网关服务（不推荐给新手）。
@@ -487,6 +491,10 @@ GitHub Actions 说明：
 - 短期（最现实）：部署 **Client Portal Gateway + self-hosted runner**，用 `IBKR_API_MODE=cpapi` 做持仓拉取与分析。
 - 中期（自动化交易）：在 CPAPI 会话管理稳定后，再接入下单端点做“交易执行层”。
 
+可行性结论（直接回答）：
+- `github-hosted runner + 仅 web/mobile + 本地 localhost CP Gateway`：不可行（runner 无法访问你本地网关，且 CPAPI 会话需浏览器登录）。
+- `self-hosted runner + CP Gateway`：可行（推荐给当前账号形态）。
+
 当前仓库已支持 `cpapi` 模式，适配上述路径。
 
 #### 参考项目 thetagang 的可借鉴点
@@ -502,6 +510,13 @@ GitHub Actions 说明：
 1. 交易自动化阶段建议优先走 `socket`（TWS/Gateway），因为下单稳定性和事件回调更成熟。
 2. 仅持仓读取/账户观测阶段，`cpapi` 依然是 web/mobile-only 用户更现实路径。
 3. 上线交易前应先实现 `dry-run`、订单审计、失败重试、风控闸门联动（可作为下一期 SDD 任务）。
+
+#### 新闻源参考项目借鉴（situation-monitor / News Minimalist）
+
+借鉴点已落地到本项目：
+1. 多源聚合思路：扩展到 NYT Business/Economy、Investing.com、News Minimalist、CISA 等；
+2. 质量与鲁棒性思路：推荐评分中加入“新闻源质量分”（source quality）和来源多样性；
+3. 小白可读性思路：热门发现结果保留“扫描 -> 初筛 -> 评分 -> 推荐”全流程统计，且给出 Top1 + 20备选。
 
 官方参考：
 - IBKR API 文档入口：<https://ibkrcampus.com/campus/ibkr-api-page/>
